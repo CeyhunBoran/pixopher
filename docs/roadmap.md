@@ -15,8 +15,8 @@ Goal: an empty but correctly structured Go project with CI.
 - [x] `go.mod` as `github.com/CeyhunBoran/pixopher`, Go 1.27 (toolchain 1.27.4)
 - [x] `cmd/pixopher/main.go` with a cobra root, `version`, and `completion`
 - [x] Package skeleton from [architecture.md](architecture.md#package-layout) (only the packages M1 needs)
-- [ ] CI (GitHub Actions): `go vet`, `golangci-lint`, `go test -race ./...` on linux, macOS and windows
-- [ ] `go install github.com/CeyhunBoran/pixopher/cmd/pixopher@latest` works
+- [x] CI (GitHub Actions): `go vet`, `golangci-lint`, `go test -race ./...` on linux, macOS and windows
+- [x] `go install github.com/CeyhunBoran/pixopher/cmd/pixopher@latest` works
 - [x] Root `README.md` with the pitch and status
 
 **Done when** CI is green on all three OSes and `pixopher version` prints the
