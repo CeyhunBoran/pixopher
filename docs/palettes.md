@@ -14,7 +14,7 @@ There are three reasons for this design:
 3. **Readable grids.** One key per color makes `show --grid` and the `.pxo`
    format readable.
 
-## Color syntax (everywhere a color is accepted)
+## Color syntax (everywhere a color is accepted) [done]
 
 | Form | Example | Meaning |
 | --- | --- | --- |
@@ -26,10 +26,14 @@ There are three reasons for this design:
 | Hex | `#f80`, `#ff8800`, `#ff880080` | raw color (creates an auto palette entry) |
 | Transparent | `.`, `transparent`, `none` | alpha 0 |
 
-Ambiguity rule: a single character is a key first. A word is a palette
-entry name first, then a ramp name.
+Ambiguity rule: a single character (two with `key_width = 2`) is a key
+first. A word is a palette entry name first, then a ramp name.
+A hex color that exactly matches an entry resolves to it, and any hex with
+alpha 0 is transparent. Ramp steps out of range fail with `invalid_color`,
+and unknown names fail with `unknown_color`.
 `key:` and `name:` prefixes (`key:o`, `name:o`) force one interpretation.
-Errors suggest the closest names (`unknown color "inc", did you mean "ink"?`).
+Errors suggest the closest name in their hint (message `unknown color "inc"`,
+hint `did you mean "ink"?`).
 
 Shell note: `#` starts a comment in shells, so quote hex colors in shell
 commands (`'#ff8800'`). Batch scripts don't need quotes.

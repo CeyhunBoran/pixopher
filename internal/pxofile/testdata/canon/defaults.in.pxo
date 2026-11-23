@@ -1,0 +1,54 @@
+# Hand-written, non-canonical: explicit defaults, comments, unsorted tables,
+# "." in the middle of the palette, an uncropped grid.
+pixopher = 1
+key_width = 1
+size = [6, 4]
+
+[palette]
+k = ["#000000", "black"]
+"." = ["#00000000", "transparent"]
+W = ["#FFFFFF", "white"]
+h = ["#ff000080", "half_red"]
+
+[symmetry]
+mode = "off"
+axis_x = 3.0
+axis_y = 2.0
+
+[[layers]]
+name = "main"
+visible = true
+locked = false
+opacity = 255
+blend = "normal"
+
+[[frames]]
+duration_ms = 100
+
+[[tags]]
+name = "all"
+from = 0
+to = 0
+direction = "forward"
+
+[regions]
+zz = [0, 0, 1, 1]
+aa = [1, 1, 2, 2]
+
+[anchors]
+mid = [3, 2]
+eye = [1, 1]
+
+[lint]
+disable = ["jaggy", "banding"]
+max_colors = 0
+
+[[cels]]
+layer = "main"
+frame = 0
+grid = '''
+......
+.kW...
+..hk..
+......
+'''

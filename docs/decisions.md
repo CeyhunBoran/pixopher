@@ -139,3 +139,101 @@ Go 1.25 target from M0.
 forced toolchain download.
 *Consequences*: golangci-lint must be built with Go 1.27 or newer (v2.15.0
 is). Raise the `toolchain` line for new patch releases.
+
+**D23: Parse `.pxo` with BurntSushi/toml, serialize by hand** (2026-11-23)
+`internal/pxofile` decodes with `github.com/BurntSushi/toml` and writes the
+canonical form with its own serializer. This supersedes the
+`pelletier/go-toml/v2` pick in architecture.md and settles the TOML library
+open question.
+*Why*: palette order defines palette indices, and decoding into a map loses
+it. BurntSushi's `MetaData.Keys()` is a stable API that returns keys in
+document order, and `MetaData.Undecoded()` finds unknown keys (D25). In
+pelletier v2 this needs the `unstable` AST package. Exact output bytes need a
+hand-written writer with either library.
+*Consequences*: `meta.created` is decoded as an untyped value, because a
+`time.Time` field goes through `UnmarshalText` and hides whether the value
+had an offset.
+
+**D24: Canonical `.pxo` layout** (2026-11-23)
+Sections are written in this order: header, `[meta]`, `[palette]`,
+`[ramps]`, `[symmetry]`, `[[layers]]`, `[[frames]]`, `[[tags]]`,
+`[regions]`, `[anchors]`, `[variants.*]`, `[lint]`, `[parts.*]` and
+`[[cels]]`, with cels last because they are the bulk of the file. One blank
+line separates sections.
+- **Field order**: fixed fields follow the order in
+  [file-format.md](file-format.md). Name-keyed tables (ramps, regions,
+  anchors, variants, parts, per-frame anchors) are sorted by key, and the
+  palette keeps its order.
+- **Defaults**: default values and empty sections are omitted. Some fields
+  are always written: the header (`pixopher`, `size`, `rev`, `key_width`),
+  a layer's `name`, a frame's `duration_ms`, a tag's `name`, `from` and `to`,
+  and a cel's `layer`, `frame` and `origin`.
+- **Palette**: `.` is always written first, whatever its position in the
+  input.
+- **Colors and times**: colors are lowercase hex, and `#rrggbb` when opaque.
+  `created` is a TOML offset datetime in UTC. Readers reject values without
+  an offset, since their meaning depends on the machine.
+- **Lint**: `lint.disable` is sorted.
+- **RLE**: "less than half the size" compares the RLE row text (tokens and
+  separating spaces) with `w * h * key_width`.
+*Why*: the example in file-format.md was inconsistent (one layer listed every
+field, another only its name). Omitting defaults gives smaller files and
+smaller diffs.
+
+**D25: Unknown keys in a `.pxo` file are a parse error** (2026-11-23)
+A key this build doesn't know fails with `parse_error`, naming the key.
+*Why*: warning and then dropping the key on the next save would silently
+destroy data written by a newer minor version. Rejecting also catches typos
+in hand-edited files.
+*Consequences*: an additive format change (same `pixopher = 1`) can't be
+read by older builds. They report the unknown key, and the fix is to
+upgrade.
+
+**D26: Ramp base step in the file, default base** (2026-11-23)
+A ramp is written as a bare key array when its base is the default. Otherwise
+it is an inline table, `skin = { steps = ["S", "s", "t"], base = "s" }`, and
+readers accept both forms. The default base of an n-step ramp is
+`(n - 1) / 2`: the middle step, or the darker of the two middle steps.
+
+**D27: Names are ASCII identifiers** (2026-11-23)
+Palette entries, ramps, layers, tags, regions, anchors, parts and variants are
+named with `[A-Za-z_][A-Za-z0-9_]*`, at most 64 characters. The color keywords
+`transparent`, `none`, `key` and `name` are reserved. A palette entry and a
+ramp may share a name (`skin`). Color syntax then picks the entry, and
+`skin:0` / `skin+1` pick the ramp.
+*Why*: names appear in CLI arguments, script lines and references (`%neck`,
+`@cork`), where spaces and punctuation would need quoting. Relaxing the rule
+later is compatible, while tightening it would not be.
+
+**D28: Color resolution details** (2026-11-23)
+- **Keys first**: a string exactly `key_width` characters long is a key
+  first. With key width 1 this is the documented "single character is a key
+  first" rule.
+- **Hex reuse**: a hex color that exactly matches an entry resolves to that
+  entry instead of creating an auto entry.
+- **Transparent hex**: any hex with alpha 0 resolves to `.`. Palette
+  entries with alpha 0 other than `.` are allowed, but can only be picked by
+  key or name.
+- **Hex forms**: only `#rgb`, `#rrggbb` and `#rrggbbaa` are accepted (no
+  `#rgba`).
+- **Resolution is pure**: `color.Resolve` never changes the document. For a
+  new raw color it returns the color, and the op adds
+  `Palette.AutoEntry(...)` as part of its undoable change.
+- **Auto entries**: the key is the first free one in the order `a-z`, `A-Z`,
+  `0-9`, then the other allowed punctuation in ASCII order (pairs in the same
+  order for key width 2). The name is `auto_rrggbb`, with `aa` appended when
+  the color isn't opaque and `_2`, `_3`, ... when the name is taken.
+- **Widening**: switching a full key-width-1 palette to key width 2 is not
+  automatic yet. `AutoEntry` returns `palette_full` (see open-questions.md).
+
+**D29: `internal/errs` holds error codes, and pixels are palette indices** (2026-11-23)
+- **`internal/errs`**: a leaf package with no internal imports. It defines
+  the stable error codes from cli.md as `*errs.Error{Code, Message, Hint,
+  Arg}` and maps codes to exit codes: `usage` → 1; `rev_conflict`, `locked`
+  and `undo_conflict` → 3; `io`, `no_file` and `server_unavailable` → 4;
+  every other code → 2.
+- **Pixels**: in memory, a cel covers the whole canvas and stores palette
+  indices (`uint16`). Index 0 is always `.`. Keys only exist in the file, so
+  changing `key_width` never touches pixels.
+- **Empty cels**: a cel without content is dropped on read and on write,
+  together with links to it, because a missing cel already means empty.

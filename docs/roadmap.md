@@ -27,9 +27,9 @@ version, commit and date (set via ldflags).
 Goal: create, draw basic shapes, read back, export PNG, undo. The data model
 already includes layers and frames, but only one of each is exposed.
 
-- [ ] `internal/doc` model with palette, ramps, layers, frames, cels, regions and anchors (fields exist, most are unused yet)
-- [ ] `.pxo` parse + canonical serialize, grid + RLE cels ([file-format.md](file-format.md))
-- [ ] Color syntax: key, name, hex, ramp step, transparent ([palettes.md](palettes.md))
+- [x] `internal/doc` model with palette, ramps, layers, frames, cels, regions and anchors (fields exist, most are unused yet)
+- [x] `.pxo` parse + canonical serialize, grid + RLE cels ([file-format.md](file-format.md))
+- [x] Color syntax: key, name, hex, ramp step, transparent ([palettes.md](palettes.md))
 - [ ] Engine direct mode: file resolution, lock, atomic write, rev, `--expect-rev`, `--dry-run`
 - [ ] History log JSONL, `undo`, `redo`, `log`
 - [ ] Op registry and cobra generation from specs

@@ -1,0 +1,27 @@
+pixopher = 1
+size = [4, 2]
+rev = 0
+key_width = 2
+
+[palette]
+".." = ["#00000000", "transparent"]
+a1 = ["#102030", "deep"]
+Zz = ["#405060", "mid"]
+
+[ramps]
+both = { steps = ["a1", "Zz"], base = "Zz" }
+
+[[layers]]
+name = "main"
+
+[[frames]]
+duration_ms = 100
+
+[[cels]]
+layer = "main"
+frame = 0
+origin = [1, 0]
+grid = '''
+a1Zz..
+..a1Zz
+'''

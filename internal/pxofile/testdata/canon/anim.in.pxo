@@ -1,0 +1,95 @@
+# Layers, frames with anchor overrides, links, variants, a non-default ramp
+# base and symmetry axes. Frame 2 links to an empty cel and is dropped.
+pixopher = 1
+size = [5, 5]
+rev = 3
+
+[meta]
+created = 2026-11-23T21:30:00+03:00
+title = "blink \"test\""
+
+[palette]
+"." = ["#00000000", "transparent"]
+o = ["#1a1c2c", "ink"]
+s = ["#e0a070", "skin_dark"]
+S = ["#f0c090", "skin"]
+t = ["#fff0d0", "skin_light"]
+T = ["#ffffff", "skin_top"]
+
+[ramps]
+skin = { steps = ["s", "S", "t", "T"], base = "t" }
+dark = { steps = ["o", "s"] }
+
+[symmetry]
+mode = "xy"
+axis_x = 2.5
+axis_y = 2.0
+
+[[layers]]
+name = "body"
+opacity = 200
+
+[[layers]]
+name = "eyes"
+visible = false
+locked = true
+blend = "multiply"
+
+[[frames]]
+duration_ms = 100
+
+[[frames]]
+duration_ms = 80
+anchors = { eye = [1, 2] }
+
+[[frames]]
+
+[[tags]]
+name = "blink"
+from = 0
+to = 2
+direction = "pingpong"
+
+[anchors]
+eye = [1, 1]
+
+[variants.night]
+skin = ["#203040", "#304050", "#405060", "#506070"]
+ink = "#000000"
+
+[[cels]]
+layer = "body"
+frame = 0
+origin = [0, 0]
+grid = '''
+.ooo.
+osSto
+oTTTo
+.ooo.
+'''
+
+[[cels]]
+layer = "body"
+frame = 1
+link = { frame = 0 }
+
+[[cels]]
+layer = "eyes"
+frame = 0
+origin = [1, 1]
+grid = '''
+o.o
+'''
+
+[[cels]]
+layer = "eyes"
+frame = 1
+origin = [0, 0]
+grid = '''
+.....
+'''
+
+[[cels]]
+layer = "eyes"
+frame = 2
+link = { frame = 1 }

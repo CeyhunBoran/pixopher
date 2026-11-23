@@ -5,11 +5,10 @@ Questions that are not decided yet. When one is resolved, move the answer to
 
 ## Format and history
 
-- **TOML library choice**: `pelletier/go-toml/v2` vs `BurntSushi/toml`. Do we
-  write the canonical serializer by hand (likely, for exact formatting) and
-  use the library only for parsing?
 - **Two-character keys**: is automatic switching to `key_width = 2` enough, or
-  should we cap palettes at ~85 colors and fail?
+  should we cap palettes at 82 colors and fail? Key width 2 can already be
+  read and written, but nothing switches to it yet (`palette_full`). If we
+  switch, how are the existing one-character keys renamed?
 
 ## Engine
 

@@ -1,0 +1,32 @@
+pixopher = 1
+size = [200, 3]
+rev = 0
+key_width = 1
+
+[palette]
+"." = ["#00000000", "transparent"]
+1 = ["#112233", "one"]
+a = ["#aabbcc", "a"]
+
+[[layers]]
+name = "main"
+
+[[frames]]
+duration_ms = 100
+
+[parts.dot]
+grid = '''
+a1
+aa
+'''
+
+[[cels]]
+layer = "main"
+frame = 0
+origin = [0, 0]
+encoding = "rle"
+rows = [
+  "121 188.",
+  "200a",
+  "100. 1a 99.",
+]

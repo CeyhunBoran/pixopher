@@ -5,6 +5,8 @@ import (
 	"runtime/debug"
 	"strings"
 	"testing"
+
+	_ "github.com/CeyhunBoran/pixopher/internal/golden" // registers -update
 )
 
 func run(t *testing.T, info BuildInfo, args ...string) (code int, stdout, stderr string) {

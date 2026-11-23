@@ -1,0 +1,13 @@
+pixopher = 1
+size = [8, 8]
+rev = 0
+key_width = 1
+
+[palette]
+"." = ["#00000000", "transparent"]
+
+[[layers]]
+name = "main"
+
+[[frames]]
+duration_ms = 100

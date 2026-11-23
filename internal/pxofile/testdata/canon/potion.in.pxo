@@ -1,0 +1,70 @@
+pixopher = 1                 # format version
+size = [16, 16]              # width, height (max 1024 x 1024)
+rev = 12                     # bumped on every transaction
+key_width = 1                # characters per pixel in grids (1 or 2)
+
+[meta]
+title = "potion"
+created = 2026-11-23T18:00:00Z
+
+[palette]                    # key = [color, name]
+"." = ["#00000000", "transparent"]  # "." is always transparent, reserved
+o   = ["#1a1c2c", "ink"]
+g   = ["#38b764", "glass"]
+G   = ["#a7f070", "glass_light"]
+r   = ["#b13e53", "liquid_dark"]
+R   = ["#ef7d57", "liquid"]
+w   = ["#f4f4f4", "shine"]
+
+[ramps]                      # ordered dark → light, by palette key
+glass  = ["o", "g", "G"]
+liquid = ["r", "R", "w"]
+
+[symmetry]
+mode = "x"                   # off | x | y | xy | (later) radial
+axis_x = 8.0                 # may be .5 for odd/even centering
+
+[[layers]]
+name = "body"
+visible = true
+locked = false
+opacity = 255
+blend = "normal"
+
+[[layers]]
+name = "shine"
+
+[[frames]]
+duration_ms = 120
+
+[[tags]]                     # animation ranges over frames (0-based, inclusive)
+name = "idle"
+from = 0
+to = 0
+direction = "forward"        # forward | reverse | pingpong
+
+[regions]                    # named rectangles: [x, y, w, h]
+neck = [6, 1, 4, 3]
+flask = [3, 4, 10, 11]
+
+[anchors]                    # named points: [x, y]; per-frame overrides allowed
+cork = [8, 1]
+
+[parts.bubble]               # reusable stamp, own grid, uses the doc palette
+grid = '''
+.w.
+w.w
+.w.
+'''
+
+[[cels]]                     # pixel data for one (layer, frame)
+layer = "body"
+frame = 0
+origin = [0, 0]              # top-left of the stored grid; cels are cropped to content
+grid = '''
+......oooo......
+......oGgo......
+......oooo......
+.....o....o.....
+....o.gGGg.o....
+'''

@@ -1,0 +1,22 @@
+# RLE input, a digit key, and a cel wider than 128 px (always RLE).
+pixopher = 1
+size = [200, 3]
+
+[palette]
+"1" = ["#112233", "one"]
+a = ["#aabbcc", "a"]
+
+[parts.dot]
+encoding = "rle"
+rows = ["1a 11", "2a"]
+
+[[cels]]
+layer = "main"
+frame = 0
+origin = [0, 0]
+encoding = "rle"
+rows = [
+  "121 188.",
+  "200a",
+  "100. 1a 99.",
+]

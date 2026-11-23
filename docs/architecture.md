@@ -97,6 +97,7 @@ the file changes on disk from outside (for example, a human hand-editing it).
 ```
 cmd/pixopher/          main; also builds the `pxo` alias (same binary, argv[0] agnostic)
 internal/
+  errs/       stable error codes (*errs.Error), exit codes; no internal imports
   doc/        document model: Doc, Palette, Ramp, Layer, Frame, Cel, Region, Anchor, Part
   pxofile/    .pxo parse + serialize (TOML + grid/RLE cels), history log I/O
   color/      color parsing, OKLab/OKLCH math, ramp generation, quantization, ΔE
@@ -116,13 +117,15 @@ internal/
   mcp/        MCP stdio server mapping registry ops to tools
   guide/      agent manual, generated from the registry + hand-written craft notes
   cli/        cobra command tree generated from the registry + non-op commands
+  golden/     test helper: the -update flag and golden file comparison
 palettes/     built-in palette files (embedded)
 testdata/     golden .pxo files and expected PNG/SVG outputs
 ```
 
 Dependency direction (no cycles): `doc` ← `color`, `raster` ← `fx` ← `ops` ←
 `script` ← `engine` ← (`cli`, `server`, `mcp`, `tui`). `render`, `export`,
-`lint` and `importer` depend on `doc` and `color` only.
+`lint` and `importer` depend on `doc` and `color` only. `pxofile` depends on
+`doc` and `color`. Every package may import `errs`.
 
 ## The op registry
 
@@ -160,7 +163,7 @@ type Change struct {
 | Need | Library |
 | --- | --- |
 | CLI | `github.com/spf13/cobra` |
-| TOML | `github.com/pelletier/go-toml/v2` |
+| TOML | `github.com/BurntSushi/toml` (parse only; the writer is hand-written, D23) |
 | TUI | `github.com/charmbracelet/bubbletea`, `lipgloss` |
 | File watching | `github.com/fsnotify/fsnotify` |
 | MCP | `github.com/modelcontextprotocol/go-sdk` |

@@ -1,0 +1,41 @@
+pixopher = 1
+size = [6, 4]
+rev = 0
+key_width = 1
+
+[palette]
+"." = ["#00000000", "transparent"]
+k = ["#000000", "black"]
+W = ["#ffffff", "white"]
+h = ["#ff000080", "half_red"]
+
+[[layers]]
+name = "main"
+
+[[frames]]
+duration_ms = 100
+
+[[tags]]
+name = "all"
+from = 0
+to = 0
+
+[regions]
+aa = [1, 1, 2, 2]
+zz = [0, 0, 1, 1]
+
+[anchors]
+eye = [1, 1]
+mid = [3, 2]
+
+[lint]
+disable = ["banding", "jaggy"]
+
+[[cels]]
+layer = "main"
+frame = 0
+origin = [1, 1]
+grid = '''
+kW.
+.hk
+'''
