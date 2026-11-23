@@ -17,7 +17,7 @@ humans watch live.
 
 ## Rules
 
-- Go 1.25, pure Go, **no CGO**. Keep the package dependency direction from
+- Go 1.27 (toolchain 1.27.4), pure Go, **no CGO**. Keep the package dependency direction from
   `docs/architecture.md`.
 - Every drawing/editing command is an op in the registry (`internal/ops`). The
   CLI, batch scripts, MCP, schema and guide are generated from it. Never

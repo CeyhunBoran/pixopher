@@ -12,7 +12,7 @@ Versioning: `0.x` until M11. Releases are tagged at the end of M3 (0.1), M5
 
 Goal: an empty but correctly structured Go project with CI.
 
-- [x] `go.mod` as `github.com/CeyhunBoran/pixopher`, Go 1.25
+- [x] `go.mod` as `github.com/CeyhunBoran/pixopher`, Go 1.27 (toolchain 1.27.4)
 - [x] `cmd/pixopher/main.go` with a cobra root, `version`, and `completion`
 - [x] Package skeleton from [architecture.md](architecture.md#package-layout) (only the packages M1 needs)
 - [ ] CI (GitHub Actions): `go vet`, `golangci-lint`, `go test -race ./...` on linux, macOS and windows

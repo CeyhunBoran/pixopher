@@ -129,3 +129,13 @@ multiple authors are common.
 module version, so installed binaries report something useful.
 *Consequences*: `version` has no `--json` yet. When the `--json` envelope
 lands in M1, `version` gets it like every other command.
+
+**D22: Target Go 1.27, built with toolchain 1.27.4** (2026-11-23)
+`go.mod` says `go 1.27.0` and `toolchain go1.27.4`. This supersedes the
+Go 1.25 target from M0.
+*Why*: 1.27.4 is the latest release. Keeping the patch level in the
+`toolchain` line, not the `go` line, means CI and development builds use
+1.27.4, while anyone with an older 1.27.x can still `go install` without a
+forced toolchain download.
+*Consequences*: golangci-lint must be built with Go 1.27 or newer (v2.15.0
+is). Raise the `toolchain` line for new patch releases.
