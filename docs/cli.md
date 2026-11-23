@@ -227,8 +227,14 @@ pxo import <in.png> [<new.pxo>] [--palette keep|quantize:16|doc] [--as-layer ref
 
 Details are in [export-import.md](export-import.md).
 
-### Misc
+### Misc [done]
 
 ```
-pxo version | completion <shell> | help <cmd>
+pxo version | completion <bash|zsh|fish|powershell> | help <cmd>   [M0]
 ```
+
+`version` prints one line, `pixopher <version> (commit <sha>, built <date>)`.
+Release builds set the three values with
+`-ldflags "-X main.version=... -X main.commit=... -X main.date=..."`. Without
+ldflags, they come from the module version and VCS stamps that Go embeds in
+the binary, and fall back to `dev`, `none` and `unknown` (see D21).

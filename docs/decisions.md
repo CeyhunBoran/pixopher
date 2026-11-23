@@ -119,3 +119,13 @@ entry has the same author. Partially reverting a transaction would leave the
 drawing in a state nobody made, so conflicts are refused instead.
 *Consequences*: every history entry records `author` from M0, even before
 multiple authors are common.
+
+**D21: Version info comes from ldflags, with a Go build info fallback** (2026-11-23)
+`main.version`, `main.commit` and `main.date` are set with `-ldflags -X`
+(the names goreleaser uses by default). Any value left unset is filled from
+`runtime/debug.ReadBuildInfo`: the module version, `vcs.revision` and
+`vcs.time`. Otherwise it is `dev`, `none` or `unknown`.
+*Why*: `go install ...@latest` cannot pass ldflags, but it still embeds the
+module version, so installed binaries report something useful.
+*Consequences*: `version` has no `--json` yet. When the `--json` envelope
+lands in M1, `version` gets it like every other command.
