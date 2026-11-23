@@ -1,0 +1,44 @@
+# Open questions
+
+Questions that are not decided yet. When one is resolved, move the answer to
+[decisions.md](decisions.md) and delete it here.
+
+## Format and history
+
+- **TOML library choice**: `pelletier/go-toml/v2` vs `BurntSushi/toml`. Do we
+  write the canonical serializer by hand (likely, for exact formatting) and
+  use the library only for parsing?
+- **Two-character keys**: is automatic switching to `key_width = 2` enough, or
+  should we cap palettes at ~85 colors and fail?
+
+## Engine
+
+- **Windows**: are locking and atomic rename reliable enough? Should the
+  Windows server use named pipes or localhost TCP + token?
+- **Performance budget for 1024x1024**: is parse+serialize per command
+  acceptable in direct mode (RLE helps), or should large docs recommend
+  `serve`?
+
+## Rendering
+
+- **WebP encoder**: which pure Go lossless encoder is maintained and
+  MIT-compatible? Verify before M9.
+- **kitty graphics inside tmux**: is passthrough detection reliable enough, or
+  should tmux sessions default to halfblock?
+- **Caption font for timelapse**: ship a small free bitmap font. Which one,
+  and what license?
+
+## Art features
+
+- **Shading algorithm**: is a distance-field pseudo-normal good enough, or do
+  we need per-region light overrides (e.g. a hat casting a shadow)? Prototype
+  in M6 and compare against hand-shaded fixtures.
+- **Lint thresholds**: ΔE limits for `near-duplicate-color` and
+  `low-contrast-ramp`, and the step-pattern tolerance for `jaggy-line`. Tune
+  them with real sprites.
+- **Built-in palettes**: confirm the redistribution license for every
+  candidate before shipping.
+
+## Product
+
+- **Telemetry**: none planned. Keep it that way?
