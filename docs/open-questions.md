@@ -12,6 +12,15 @@ Questions that are not decided yet. When one is resolved, move the answer to
 
 ## Engine
 
+- **Log and document out of step**: the document is written before the log
+  (D32), so a crash in between leaves the log behind the document's rev,
+  and a hand edit or `git checkout` can leave it ahead. What should `undo`
+  and `log` do with entries above the document's rev, or with a gap? A rev
+  rollback also makes the next transaction reuse a tx id (D32), so undo
+  can't group entries by tx id alone. Decoded deltas must also be checked
+  against the current document (cel, canvas, palette) before they are
+  applied. Decide with `undo` in M1.
+
 - **Windows**: are locking and atomic rename reliable enough? Should the
   Windows server use named pipes or localhost TCP + token?
 - **Performance budget for 1024x1024**: is parse+serialize per command

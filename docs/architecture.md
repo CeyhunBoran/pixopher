@@ -45,7 +45,8 @@ Each command:
 
 1. Resolves the target file (see [cli.md](cli.md#file-resolution)).
 2. Takes an exclusive advisory lock on `sprite.pxo.lock` (`flock` on Unix,
-   `LockFileEx` on Windows) with a short timeout.
+   `LockFileEx` on Windows) with a short timeout. The lock file stays on
+   disk (D32).
 3. Loads and parses the `.pxo`.
 4. Checks `--expect-rev` if given (optimistic concurrency).
 5. Applies the ops in memory and computes the change set (changed pixels,
@@ -102,7 +103,7 @@ internal/
   pxofile/    .pxo parse + serialize (TOML + grid/RLE cels), history log I/O
   color/      color parsing, OKLab/OKLCH math, ramp generation, quantization, ΔE
   raster/     pure algorithms: Bresenham, ellipse, polygon fill, flood fill, transforms
-  ops/        the op registry; each op = spec (args, docs) + Apply(doc) → Change
+  ops/        the op registry; each op = spec (args, docs) + Apply(ctx, args), recorded into a Change (D30)
   fx/         outline, shade, recolor, dither, gradient (used by ops)
   script/     batch script lexer/parser → []ops.Call
   engine/     transaction: lock, load, apply, save, log; Backend interface (direct | server client)
@@ -141,15 +142,20 @@ type Spec struct {
 
 type Op interface {
     Spec() Spec
-    Apply(ctx *Ctx, args Args) (Change, error) // Ctx has doc, target layer/frame, symmetry, selection
+    Apply(ctx *Ctx, args Args) error // Ctx has doc, target layer/frame (later: symmetry, selection)
 }
 
+// Ctx records every pixel written through ctx.Set and snapshots the header;
+// ctx.Finish() returns the step's Change (D30).
 type Change struct {
-    Pixels  []PixelDelta    // layer, frame, x, y, before, after
-    Meta    []MetaDelta     // palette, layer, frame, region edits (with inverse)
-    BBox    image.Rectangle
+    Pixels []doc.PixelDelta // layer, frame, x, y, before, after; sorted
+    Meta   *doc.MetaDelta   // header snapshots before/after, nil if unchanged
+    BBox   doc.Rect
 }
 ```
+
+`ops.Revert` and `ops.Reapply` apply a `Change` backwards or forwards, which
+is all that undo and redo need. The log encoding of a `Change` is in D31.
 
 - The CLI turns each `Spec` into a cobra command.
 - The batch parser turns each script line into the same `Args`.
@@ -166,6 +172,7 @@ type Change struct {
 | TOML | `github.com/BurntSushi/toml` (parse only; the writer is hand-written, D23) |
 | TUI | `github.com/charmbracelet/bubbletea`, `lipgloss` |
 | File watching | `github.com/fsnotify/fsnotify` |
+| File locks | `golang.org/x/sys` (`flock`, `LockFileEx`, D33) |
 | MCP | `github.com/modelcontextprotocol/go-sdk` |
 | PNG/GIF/JPEG | Go stdlib `image/*` |
 | WebP (lossless encode) | pure Go encoder, see [open-questions.md](open-questions.md) |

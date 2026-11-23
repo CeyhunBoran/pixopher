@@ -237,3 +237,75 @@ later is compatible, while tightening it would not be.
   changing `key_width` never touches pixels.
 - **Empty cels**: a cel without content is dropped on read and on write,
   together with links to it, because a missing cel already means empty.
+
+**D30: Ops apply through a recording `Ctx`** (2026-11-24)
+`Op.Apply(ctx *ops.Ctx, args ops.Args) error` replaces the `(Change, error)`
+signature sketched in architecture.md. Ops write pixels with `ctx.Set`,
+which records a `doc.PixelDelta` (first before, last after, dropped when
+they end equal). Header fields (palette, ramps, ...) may be changed
+directly: `NewCtx` snapshots the header and `Ctx.Finish` returns a
+`doc.MetaDelta` when it changed. One `Ctx` covers one history step.
+`PixelDelta` and `MetaDelta` live in `doc`, so `pxofile` can encode them
+without importing `ops`.
+*Why*: an op cannot forget to record a change, and every op gets undo for
+free. Header snapshots are small, while copying cels for every step would
+not be.
+*Consequences*: Args hold parsed values (`doc.Point`, `int`, raw color
+strings, ...). Text parsing and formatting of args come with cobra
+generation. Until then a `Call` carries its normalized script line.
+
+**D31: History entry undo encoding** (2026-11-24)
+- **Pixels**: `undo.pixels` is base64 of a packed byte string. Byte 0 is
+  the version, `1`. Then, for each cel: layer, frame, canvas width and run
+  count, followed by runs of consecutive row-major pixels that share the
+  same before and after value. Each run is the gap from the end of the
+  previous run, the length, before and after. All numbers are unsigned
+  varints. No pixel deltas give `""`. Both directions are stored, so one
+  entry supports undo, redo and the D20 overlap check.
+- **Meta**: `undo.meta` is `[]`, or one `{"before": ..., "after": ...}`
+  pair holding the canonical `.pxo` text of the document header (no cels,
+  `rev = 0`) before and after the step.
+*Why*: runs keep a full 64x64 fill at 16 base64 characters instead of tens of KB, which
+matters for logs that are committed to git (D18). Header snapshots reuse
+the `.pxo` format, so every current and future meta edit (palette, ramps,
+layers, regions, ...) is undoable without a codec per section.
+*Consequences*: a meta-changing entry is a few hundred bytes to a few KB.
+Undoing a meta change while another author has since changed the header is
+an `undo_conflict` (D20) unless forced, because the whole header is
+restored.
+
+**D32: Direct-mode transaction details** (2026-11-24)
+- **Rev and tx**: every step that changes something bumps `rev` and writes
+  one entry. A step that changes nothing writes no entry. A transaction that
+  changes nothing writes neither the file nor the log, and keeps its rev.
+  The tx id is `t_` and the rev of the transaction's first entry,
+  zero-padded to four digits (`t_0012`). No log read is needed to make one.
+  Revs only grow while the document and its log move together; a rollback
+  of the document alone (hand edit, `git checkout`) can reuse a tx id (see
+  open-questions.md).
+- **Atomicity**: a failing call aborts the whole transaction before
+  anything is written. The document is written first (temp file in the same
+  directory, fsync, rename, permissions kept), then the log is appended in
+  one write. The log and the directory are not fsynced. On macOS the fsync
+  is a plain `fsync`, not `F_FULLFSYNC`. A full command on a 64x64 document
+  takes about 3 ms on Linux.
+- **Lock**: `<name>.pxo.lock` is retried every 5 ms for up to 2 s, then the
+  command fails with `locked`. The lock file is never deleted, because
+  deleting it while another process waits would let two writers in.
+  Readers take no lock. A missing document fails with `no_file` before
+  the lock file is created.
+- **Dry run**: takes no lock and writes nothing, but runs the same checks
+  (including `--expect-rev`) and reports the would-be rev with
+  `"dry_run": true`.
+- **Output**: `bbox` is omitted when no pixel changed. `changed` counts
+  distinct pixels that differ from the start of the transaction.
+- **Log tail**: a partial last line (a crash during append) is ignored by
+  readers and cut off by the next append. A complete last line that only
+  lacks its newline is kept.
+
+**D33: `golang.org/x/sys` for file locks** (2026-11-24)
+`flock` (`unix.Flock`) on Linux, macOS and the BSDs, and `LockFileEx` on
+Windows, come from `golang.org/x/sys`. The standard library has no
+`LockFileEx`. The license is BSD-3-Clause, which is compatible with D19.
+Other platforms (such as wasm) get no lock; `--expect-rev` still detects
+conflicting writes.

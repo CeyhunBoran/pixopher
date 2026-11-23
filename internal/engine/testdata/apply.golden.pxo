@@ -1,0 +1,24 @@
+pixopher = 1
+size = [8, 8]
+rev = 2
+key_width = 1
+
+[palette]
+"." = ["#00000000", "transparent"]
+o = ["#1a1c2c", "ink"]
+a = ["#ff0000", "auto_ff0000"]
+
+[[layers]]
+name = "main"
+
+[[frames]]
+duration_ms = 100
+
+[[cels]]
+layer = "main"
+frame = 0
+origin = [1, 1]
+grid = '''
+ooo
+oaa
+'''

@@ -30,9 +30,12 @@ already includes layers and frames, but only one of each is exposed.
 - [x] `internal/doc` model with palette, ramps, layers, frames, cels, regions and anchors (fields exist, most are unused yet)
 - [x] `.pxo` parse + canonical serialize, grid + RLE cels ([file-format.md](file-format.md))
 - [x] Color syntax: key, name, hex, ramp step, transparent ([palettes.md](palettes.md))
-- [ ] Engine direct mode: file resolution, lock, atomic write, rev, `--expect-rev`, `--dry-run`
-- [ ] History log JSONL, `undo`, `redo`, `log`
-- [ ] Op registry and cobra generation from specs
+- [x] Engine direct mode: lock, atomic write, rev, `--expect-rev`, `--dry-run` (engine options; the flags come with cobra generation)
+- [ ] File resolution (`-f`, `PIXOPHER_FILE`, `use`, the only `*.pxo`)
+- [x] History log JSONL: entries with tx ids and undo deltas, written and read
+- [ ] `undo`, `redo`, `log`
+- [x] Op registry core types: spec, args, recording ctx, change, registry
+- [ ] Cobra generation from specs
 - [ ] Ops: `new`, `info`, `use`, `clear`, `px`, `line` (pixel-perfect), `rect`, `fill`, `erase`, `replace`
 - [ ] `palette list/add/set/rename/rm`, `ramp add/rm`; built-ins `default` and `sweetie16`
 - [ ] Observation: `show --grid --rulers --legend`, `get`, `stats`

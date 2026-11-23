@@ -1,7 +1,8 @@
 # The `.pxo` file format
 
 Status: the document format is **[done]** (M1). The history log is
-**[planned]**.
+**[wip]**: entries are written and read, and `undo`, `redo`, `log` and
+checkpoints are still planned.
 
 A `.pxo` file is a **TOML document** whose pixel data is stored as **letter
 grids** inside multi-line literal strings. It is meant to be readable, editable
@@ -20,7 +21,7 @@ so every field is visible. The canonical writer omits defaults such as
 ```toml
 pixopher = 1                 # format version
 size = [16, 16]              # width, height (max 1024 x 1024)
-rev = 12                     # bumped on every transaction
+rev = 12                     # bumped on every history step
 key_width = 1                # characters per pixel in grids (1 or 2)
 
 [meta]
@@ -205,7 +206,7 @@ newline. `meta.created` is written in UTC and must have an offset when read.
 This keeps diffs minimal and makes golden tests stable. The exact rules are in
 D24 in [decisions.md](decisions.md).
 
-## History log [planned]
+## History log [wip]
 
 `<name>.pxo.log` is **JSON Lines**. There is one entry per transaction, and
 the file is append-only.
@@ -226,7 +227,14 @@ the file is append-only.
 
 - `ops` holds the normalized script lines that were applied. This powers
   replay, timelapse and the captions in viewers.
-- `undo` holds the inverse deltas, enough to revert without snapshots.
+- `undo` holds the deltas in both directions, enough to undo and redo
+  without document snapshots **[done]**. `undo.pixels` is base64 of
+  run-packed pixel deltas, `""` when no pixel changed. `undo.meta` is `[]`,
+  or one `{"before", "after"}` pair with the canonical text of the document
+  header (no cels, `rev = 0`) when the palette, ramps or another non-pixel
+  part changed. The exact encoding is D31 in [decisions.md](decisions.md).
+- `msg` is omitted when the step has no caption, and `bbox` when no pixel
+  changed. A step that changes nothing writes no entry (D32).
 - Every 100 revisions a **checkpoint** entry embeds a full snapshot of the
   document, so replay and `restore` don't need to walk from rev 0.
 - Named checkpoints are created with `pixopher checkpoint "before arms"`.
@@ -240,6 +248,11 @@ Commit the log to git next to its document; it powers replay and timelapse.
 To keep diffs readable, add `*.pxo.log -diff` to `.gitattributes`,
 and run `log --compact` if a log grows too
 large. If the log is missing, the document still opens, with no undo history.
+If its last line is incomplete (a crash during append), readers ignore that
+line and the next append cuts it off.
+
+Writers also create `<name>.pxo.lock`, the advisory lock file. It is
+never deleted and holds no data; add `*.pxo.lock` to `.gitignore`.
 
 ## Versioning
 

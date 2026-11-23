@@ -62,6 +62,11 @@ With `--json`:
 {"ok": true, "rev": 13, "changed": 24, "bbox": [6, 1, 4, 3], "warnings": []}
 ```
 
+`changed` counts the distinct pixels that differ from before the command,
+and `bbox` is omitted when no pixel changed. A command that changes nothing writes
+nothing and keeps the rev. With `--dry-run`, `rev` is the rev the command
+would produce and the output adds `"dry_run": true`.
+
 On error:
 
 ```json
