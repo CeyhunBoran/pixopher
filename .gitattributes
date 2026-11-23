@@ -1,0 +1,8 @@
+# LF everywhere so gofmt passes on Windows and golden files compare byte-for-byte.
+* text=auto eol=lf
+
+*.png binary
+*.gif binary
+*.ico binary
+*.jpg binary
+*.webp binary

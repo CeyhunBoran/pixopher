@@ -1,0 +1,4 @@
+# binaries from `go build ./cmd/pixopher`
+/pixopher
+/pixopher.exe
+/dist/
