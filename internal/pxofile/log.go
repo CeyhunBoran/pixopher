@@ -18,7 +18,7 @@ import (
 func LogPath(path string) string { return path + ".log" }
 
 // Entry is one history log line: one step, with its rev and caption
-// (docs/file-format.md#history-log). Field order is the JSON key order.
+// (docs/file-format.md#history-log-wip). Field order is the JSON key order.
 type Entry struct {
 	Rev    int      `json:"rev"`
 	Tx     string   `json:"tx"`

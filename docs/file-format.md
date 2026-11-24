@@ -9,7 +9,7 @@ grids** inside multi-line literal strings. It is meant to be readable, editable
 by hand, and to produce useful git diffs.
 
 History lives in a sidecar file, `<name>.pxo.log`, so the main file stays
-clean (see [History log](#history-log)).
+clean (see [History log](#history-log-wip)).
 
 ## Example
 

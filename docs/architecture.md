@@ -11,7 +11,7 @@
    atomically. Each step inside it bumps the revision and writes one history
    entry with its caption. All entries of one transaction share a `tx` id,
    and `undo` reverts a whole transaction (`--step` reverts a single entry).
-   See [file-format.md](file-format.md#history-log).
+   See [file-format.md](file-format.md#history-log-wip).
 4. **Pure Go, no CGO.** It cross-compiles to linux/macOS/windows on amd64 and
    arm64.
 5. **Deterministic.** The same document plus the same ops gives the same

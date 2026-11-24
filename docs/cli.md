@@ -95,8 +95,9 @@ goes to stderr:
 without its own hint gets ``see `pixopher <command> --help` ``.
 
 A malformed argument (`1;1` for a point, an unknown enum value, a missing
-or extra positional, an unknown flag) is a `usage` error naming the
-argument in `arg`. A well-formed value the document rejects (off the
+or extra positional, an unknown flag) is a `usage` error. `arg` names the
+argument when it is one the command declares, so it is absent for an
+unknown flag or an extra positional. A well-formed value the document rejects (off the
 canvas, an unknown color) is a domain error with its own code.
 
 `PIXOPHER_JSON` turns `--json` on globally, which is handy for agents. Any

@@ -331,8 +331,9 @@ will use the same functions.
   bool positionals, a default on a required argument, and short flags that
   are digits or longer than one letter.
 - **Errors**: malformed text, missing or extra positionals, unknown flags
-  and flags given twice are `usage` errors (exit 1) with `arg` set when one
-  argument is at fault.
+  and flags given twice are `usage` errors (exit 1) with `arg` set when a
+  declared argument is at fault (not for unknown flags or extra
+  positionals).
 *Why*: logged lines are replayed and shown as captions, so one spelling per
 call keeps logs diffable and replays identical. A rect written as one token
 works both as a positional and as a flag.
