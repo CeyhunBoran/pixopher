@@ -5,19 +5,22 @@ Examples use `pxo`.
 
 ## Conventions
 
-### File resolution
+### File resolution [done]
 
 Most commands act on one document. The document is chosen in this order:
 
 1. `-f, --file <path>` flag, or the first positional argument when it ends in
-   `.pxo` (`pxo rect hero.pxo 1,1 4,4 ink` is valid),
+   `.pxo` (`pxo rect hero.pxo 1,1 4,4 ink` is valid). Giving both is a
+   `usage` error,
 2. `PIXOPHER_FILE` environment variable,
 3. `pxo use <path>`, which stores the current file in
    `.pixopher/current` in the working directory,
 4. the only `*.pxo` file in the working directory, if there is exactly one.
 
 Otherwise the command fails with `no_file`, and the message lists the
-candidates.
+candidates in name order. The `.pxo` suffix is matched case-sensitively
+everywhere. If the file stored by `use` no longer exists, the command fails
+with `no_file` and says so (D35).
 
 ### Coordinates and geometry
 
@@ -26,8 +29,9 @@ candidates.
 - Point: `x,y`, e.g. `3,4`. Negative values are allowed where clipping makes
   sense (shapes may extend off-canvas and are clipped; `px` out of bounds is
   an error).
-- Size: `w,h` or `wxh`.
-- Rect: `x,y w,h` (two args) or `x,y,w,h` (one arg).
+- Size: `w,h` or `wxh`. Sizes and rect widths and heights are at least 1.
+- Rect: `x,y w,h` (two args) or `x,y,w,h` (one arg). A flag value takes the
+  one-arg form.
 - Anchor reference: `@cork`, with an offset `@cork+1,-2`.
 - Region reference: `%flask` (a rect). `%flask.center`, `%flask.tl`, `.br`
   etc. give points.
@@ -37,26 +41,38 @@ candidates.
 
 ### Colors
 
-See [palettes.md](palettes.md#color-syntax-everywhere-a-color-is-accepted).
+See [palettes.md](palettes.md#color-syntax-everywhere-a-color-is-accepted-done).
 
 ### Common flags (all mutating commands)
 
 | Flag | Meaning |
 | --- | --- |
+| `-f, --file <path>` | the document (see [file resolution](#file-resolution-done)) |
 | `-m, --message <text>` | caption for this transaction (shown live, stored in the log) |
 | `--as <author>` | author label (default `$PIXOPHER_AUTHOR` or `cli`) |
 | `--expect-rev <n>` | fail with `rev_conflict` unless the doc is at rev n |
 | `--dry-run` | compute and report the change without writing |
-| `--no-sym` | ignore the document's symmetry mode for this command |
-| `--mask <region\|layer>` | only affect pixels inside the mask |
-| `--json` | machine-readable output |
-| `--no-server` | don't forward to a running `serve` daemon |
+| `--no-sym` | ignore the document's symmetry mode for this command [M2] |
+| `--mask <region\|layer>` | only affect pixels inside the mask [M2] |
+| `--json` | machine-readable output (every command, not only mutating ones) |
+| `--no-server` | don't forward to a running `serve` daemon [M7] |
 
-### Output
+`-f`, `-m`, `--as`, `--expect-rev`, `--dry-run` and `--json` are
+**[done]**. The others arrive with the features they control. An op can't
+define a flag with the same name or short letter as a common flag.
+
+Flags may appear anywhere on the command line, before or after the
+positionals. A token that starts with `-` and a digit is a value, not a
+flag, so negative coordinates need no quoting (`pxo rect -2,-2 5,5 ink`).
+Everything after `--` is positional. A flag given twice is a `usage` error.
+
+### Output [done]
 
 Human output is short by default: `ok rev 13  +24px  bbox 6,1 4,3`.
+A command that changes nothing prints `ok rev 12  +0px`, and a dry run
+appends `  (dry run)`. Warnings go to stderr as `warning: ...`.
 
-With `--json`:
+With `--json`, stdout gets exactly one line of JSON:
 
 ```json
 {"ok": true, "rev": 13, "changed": 24, "bbox": [6, 1, 4, 3], "warnings": []}
@@ -67,13 +83,25 @@ and `bbox` is omitted when no pixel changed. A command that changes nothing writ
 nothing and keeps the rev. With `--dry-run`, `rev` is the rev the command
 would produce and the output adds `"dry_run": true`.
 
-On error:
+On error, with `--json`, the error envelope goes to **stdout** and nothing
+goes to stderr:
 
 ```json
 {"ok": false, "error": {"code": "out_of_bounds", "message": "x=40 is outside the canvas", "hint": "canvas is 32x32; valid x is 0..31", "arg": "x"}}
 ```
 
-`PIXOPHER_JSON=1` turns `--json` on globally, which is handy for agents.
+`hint` and `arg` are omitted when empty. Without `--json`, stderr gets
+`error: <message>` and, when there is one, `hint: <hint>`. A `usage` error
+without its own hint gets ``see `pixopher <command> --help` ``.
+
+A malformed argument (`1;1` for a point, an unknown enum value, a missing
+or extra positional, an unknown flag) is a `usage` error naming the
+argument in `arg`. A well-formed value the document rejects (off the
+canvas, an unknown color) is a domain error with its own code.
+
+`PIXOPHER_JSON` turns `--json` on globally, which is handy for agents. Any
+value Go's `strconv.ParseBool` reads as true counts (`1`, `t`, `true`,
+...). An explicit `--json=false` still wins.
 
 ### Exit codes
 
@@ -107,7 +135,7 @@ Groups and commands. `[M#]` is the roadmap milestone that delivers the command.
 ```
 pxo new <file> --size 32x32 [--palette <name|file>] [--bg <color>] [--force]   [M1]
 pxo info [--json]                     size, rev, palette size, layers, frames, regions, anchors   [M1]
-pxo use <file>                        set current file for this directory   [M1]
+pxo use <file>                        set current file for this directory   [done]
 pxo resize <w,h> [--anchor tl|c|...]  change canvas size, keeping pixels   [M6]
 pxo crop <rect|%region|auto>          crop canvas (auto = content bbox)   [M6]
 pxo clear [color]                     clear target cel   [M1]
@@ -239,6 +267,10 @@ pxo version | completion <bash|zsh|fish|powershell> | help <cmd>   [M0]
 ```
 
 `version` prints one line, `pixopher <version> (commit <sha>, built <date>)`.
+With `--json` it prints
+`{"ok": true, "version": "...", "commit": "...", "date": "..."}`. `use`
+prints `using <file>`, or `{"ok": true, "file": "<file>"}` with `--json`,
+where `<file>` is the stored path (D35).
 Release builds set the three values with
 `-ldflags "-X main.version=... -X main.commit=... -X main.date=..."`. Without
 ldflags, they come from the module version and VCS stamps that Go embeds in

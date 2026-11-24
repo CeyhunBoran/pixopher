@@ -1,0 +1,6 @@
+{"rev":1,"tx":"t_0001","ts":"2026-11-25T09:00:00Z","author":"cli","ops":["mark 1,1 ink"],"bbox":[1,1,1,1],"undo":{"pixels":"AQAACAEJAQAB","meta":[]}}
+{"rev":2,"tx":"t_0002","ts":"2026-11-25T09:00:00Z","author":"cli","msg":"hollow box","ops":["mark 2,2 o --size 3 --style hollow"],"bbox":[2,2,3,3],"undo":{"pixels":"AQAACAQSAwABBQEAAQEBAAEFAwAB","meta":[]}}
+{"rev":3,"tx":"t_0003","ts":"2026-11-25T09:00:00Z","author":"bot","ops":["mark 6,6 ink --size 2"],"bbox":[6,6,2,2],"undo":{"pixels":"AQAACAI2AgABBgIAAQ==","meta":[]}}
+{"rev":4,"tx":"t_0004","ts":"2026-11-25T09:00:00Z","author":"cli","ops":["group sub 7,0 ink"],"bbox":[7,0,1,1],"undo":{"pixels":"AQAACAEHAQAB","meta":[]}}
+{"rev":5,"tx":"t_0005","ts":"2026-11-25T09:00:00Z","author":"agent","ops":["mark 0,7 ink"],"bbox":[0,7,1,1],"undo":{"pixels":"AQAACAE4AQAB","meta":[]}}
+{"rev":6,"tx":"t_0006","ts":"2026-11-25T09:00:00Z","author":"agent","ops":["mark 0,6 ink"],"bbox":[0,6,1,1],"undo":{"pixels":"AQAACAEwAQAB","meta":[]}}

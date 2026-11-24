@@ -1,0 +1,183 @@
+$ pxo mark 1,1 ink
+exit 0
+--- stdout
+ok rev 1  +1px  bbox 1,1 1,1
+
+$ pxo mark 2,2 o --size 3 --style hollow --json -m 'hollow box'
+exit 0
+--- stdout
+{"ok":true,"rev":2,"changed":8,"bbox":[2,2,3,3],"warnings":[]}
+
+$ pxo mark sprite.pxo 0,0 ink --dry-run --json
+exit 0
+--- stdout
+{"ok":true,"rev":3,"changed":1,"bbox":[0,0,1,1],"warnings":[],"dry_run":true}
+
+$ pxo mark 0,0 ink --dry-run
+exit 0
+--- stdout
+ok rev 3  +1px  bbox 0,0 1,1  (dry run)
+
+$ pxo mark 1,1 ink --json
+exit 0
+--- stdout
+{"ok":true,"rev":2,"changed":0,"warnings":[]}
+
+$ pxo mark 6,6 ink -s=2 --as bot --expect-rev 2 --json
+exit 0
+--- stdout
+{"ok":true,"rev":3,"changed":4,"bbox":[6,6,2,2],"warnings":[]}
+
+$ pxo group sub 7,0 ink --json
+exit 0
+--- stdout
+{"ok":true,"rev":4,"changed":1,"bbox":[7,0,1,1],"warnings":[]}
+
+$ pxo mark 0,7 ink
+exit 0
+--- stdout
+{"ok":true,"rev":5,"changed":1,"bbox":[0,7,1,1],"warnings":[]}
+
+$ pxo mark 0,6 ink --json=false
+exit 0
+--- stdout
+ok rev 6  +1px  bbox 0,6 1,1
+
+$ pxo mark -2,-2 ink --json
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"out_of_bounds","message":"-2,-2 is outside the canvas","hint":"canvas is 8x8","arg":"at"}}
+
+$ pxo mark 1;1 ink --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"bad point \"1;1\" for at","hint":"at is x,y","arg":"at"}}
+
+$ pxo mark 1,1
+exit 1
+--- stderr
+error: missing argument <color>
+hint: see `pixopher mark --help`
+
+$ pxo mark 1,1 ink extra
+exit 1
+--- stderr
+error: unexpected argument "extra"
+hint: see `pixopher mark --help`
+
+$ pxo mark 1,1 ink --style dotted --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"bad style \"dotted\"","hint":"use one of: solid, hollow","arg":"style"}}
+
+$ pxo mark 1,1 ink --bogus --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"unknown flag --bogus","hint":"see `pixopher mark --help`"}}
+
+$ pxo mark 1,1 nosuch --json
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"unknown_color","message":"unknown color \"nosuch\"","arg":"color"}}
+
+$ pxo mark 1,1 ink --expect-rev 1 --json
+exit 3
+--- stdout
+{"ok":false,"error":{"code":"rev_conflict","message":"sprite.pxo is at rev 6, not 1","hint":"another write happened; look at the document again, then retry with --expect-rev 6","arg":"expect-rev"}}
+
+$ pxo mark -f other.pxo 1,1 ink --json
+exit 4
+--- stdout
+{"ok":false,"error":{"code":"no_file","message":"other.pxo does not exist","hint":"create it with `pxo new other.pxo --size 32x32`"}}
+
+$ pxo mark -f sprite.pxo sprite.pxo 1,1 ink
+exit 1
+--- stderr
+error: the document is given twice: -f sprite.pxo and sprite.pxo
+hint: see `pixopher mark --help`
+
+$ pxo nope --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"unknown command \"nope\" for \"pixopher\"","hint":"see `pixopher --help`"}}
+
+$ pxo nope
+exit 1
+--- stderr
+error: unknown command "nope" for "pixopher"
+hint: see `pixopher --help`
+
+$ pxo version --bogus --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"unknown flag: --bogus","hint":"see `pixopher version --help`"}}
+
+$ pxo mark 1,1 ink --json
+exit 4
+--- stdout
+{"ok":false,"error":{"code":"no_file","message":"no document given and 2 .pxo files in the working directory: other.pxo, sprite.pxo","hint":"pass -f <file>, or pick one for this directory with `pxo use <file>`"}}
+
+$ pxo mark 3,3 ink --json
+exit 0
+--- stdout
+{"ok":true,"rev":1,"changed":1,"bbox":[3,3,1,1],"warnings":[]}
+
+$ pxo use missing.pxo --json
+exit 4
+--- stdout
+{"ok":false,"error":{"code":"no_file","message":"missing.pxo does not exist","hint":"create it with `pxo new missing.pxo --size 32x32`"}}
+
+$ pxo use other.pxo
+exit 0
+--- stdout
+using other.pxo
+
+$ pxo mark 4,4 ink --json
+exit 0
+--- stdout
+{"ok":true,"rev":2,"changed":1,"bbox":[4,4,1,1],"warnings":[]}
+
+$ pxo use sprite.pxo --json
+exit 0
+--- stdout
+{"ok":true,"file":"sprite.pxo"}
+
+$ pxo --json -f other.pxo mark 5,5 ink
+exit 0
+--- stdout
+{"ok":true,"rev":3,"changed":1,"bbox":[5,5,1,1],"warnings":[]}
+
+$ pxo mark --help
+exit 0
+--- stdout
+Paint a square
+
+Arguments:
+  at     point x,y; top-left corner
+  color  color: key, name, ramp step, #hex or .
+
+Usage:
+  pixopher mark <at> <color> [flags]
+
+Examples:
+  pxo mark 1,1 ink
+  pxo mark 2,2 #ff0000 --size 3
+
+Flags:
+      --as string        author label (default $PIXOPHER_AUTHOR or cli)
+      --dry-run          report the change without writing anything
+      --expect-rev int   fail with rev_conflict unless the document is at this rev
+  -f, --file string      document to act on (default: $PIXOPHER_FILE, the file set by use, or the only *.pxo here)
+  -h, --help             help for mark
+  -m, --message string   caption for this transaction
+  -s, --size int         side length (default 1)
+      --style enum       (one of: solid, hollow) (default solid)
+
+Global Flags:
+      --json   machine-readable output (PIXOPHER_JSON=1 turns it on everywhere)
+
+$ pxo version --json
+exit 0
+--- stdout
+{"ok":true,"version":"v0.0.0-test","commit":"abc1234","date":"2026-11-25T09:00:00Z"}
+

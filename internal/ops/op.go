@@ -48,7 +48,8 @@ func (a Args) Has(name string) bool { _, ok := a[name]; return ok }
 type Call struct {
 	Op   Op
 	Args Args
-	// Line is the normalized script line, such as "rect 6,1 4,3 ink". It is
-	// stored in the history log for replay and captions.
+	// Line is the canonical script line from Format, such as
+	// "rect 6,1 4,3 ink". It is stored in the history log for replay and
+	// captions.
 	Line string
 }

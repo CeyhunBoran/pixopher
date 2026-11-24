@@ -1,6 +1,7 @@
 package errs
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -28,5 +29,21 @@ func TestCodeOf(t *testing.T) {
 	}
 	if CodeOf(fmt.Errorf("plain")) != "" {
 		t.Fatal("plain errors have no code")
+	}
+}
+
+func TestJSON(t *testing.T) {
+	full := New(OutOfBounds, "x=40 is outside the canvas").WithHint("canvas is 32x32; valid x is 0..31").WithArg("x")
+	b, err := json.Marshal(full)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"code":"out_of_bounds","message":"x=40 is outside the canvas","hint":"canvas is 32x32; valid x is 0..31","arg":"x"}`
+	if string(b) != want {
+		t.Fatalf("got %s, want %s", b, want)
+	}
+	b, _ = json.Marshal(New(Locked, "busy"))
+	if string(b) != `{"code":"locked","message":"busy"}` {
+		t.Fatalf("empty hint and arg are not omitted: %s", b)
 	}
 }

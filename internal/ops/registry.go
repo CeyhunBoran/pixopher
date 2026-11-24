@@ -74,6 +74,21 @@ func (s *Spec) check() error {
 			return fmt.Errorf("ops: %s: flag %q cannot be required or repeated", s.Name, a.Name)
 		case !a.Flag && a.Short != "":
 			return fmt.Errorf("ops: %s: positional %q cannot have a short flag", s.Name, a.Name)
+		case !a.Flag && a.Kind == KindBool:
+			return fmt.Errorf("ops: %s: bool argument %q must be a flag", s.Name, a.Name)
+		case len(a.Short) > 1 || a.Short != "" && isDigit(a.Short[0]):
+			return fmt.Errorf("ops: %s: short flag %q must be one non-digit character", s.Name, a.Short)
+		case a.Default != "" && a.Required:
+			return fmt.Errorf("ops: %s: required argument %q cannot have a default", s.Name, a.Name)
+		}
+		if a.Default != "" {
+			toks := strings.Fields(a.Default)
+			if a.Flag {
+				toks = []string{a.Default}
+			}
+			if _, n, err := parseValue(a, toks); err != nil || n != len(toks) {
+				return fmt.Errorf("ops: %s: bad default %q for %q", s.Name, a.Default, a.Name)
+			}
 		}
 		seen[a.Name] = true
 		if a.Flag {
@@ -101,3 +116,5 @@ func lastPositional(args []ArgSpec) int {
 	}
 	return last
 }
+
+func isDigit(c byte) bool { return c >= '0' && c <= '9' }

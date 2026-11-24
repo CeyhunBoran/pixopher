@@ -5,6 +5,8 @@ import (
 	"runtime/debug"
 
 	"github.com/spf13/cobra"
+
+	"github.com/CeyhunBoran/pixopher/internal/errs"
 )
 
 // Defaults for builds that were not given ldflags.
@@ -60,14 +62,24 @@ func (b BuildInfo) String() string {
 	return fmt.Sprintf("pixopher %s (commit %s, built %s)", b.Version, b.Commit, b.Date)
 }
 
-func newVersionCmd(info BuildInfo) *cobra.Command {
+func newVersionCmd(info BuildInfo, st *state) *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print the version, commit and build date",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			_, err := fmt.Fprintln(cmd.OutOrStdout(), info.String())
-			return err
+			if st.jsonOn(cmd, nil) {
+				return writeJSON(cmd.OutOrStdout(), struct {
+					OK      bool   `json:"ok"`
+					Version string `json:"version"`
+					Commit  string `json:"commit"`
+					Date    string `json:"date"`
+				}{true, info.Version, info.Commit, info.Date})
+			}
+			if _, err := fmt.Fprintln(cmd.OutOrStdout(), info.String()); err != nil {
+				return &errs.Error{Code: errs.IO, Message: err.Error()}
+			}
+			return nil
 		},
 	}
 }

@@ -43,7 +43,7 @@
 
 Each command:
 
-1. Resolves the target file (see [cli.md](cli.md#file-resolution)).
+1. Resolves the target file (see [cli.md](cli.md#file-resolution-done)).
 2. Takes an exclusive advisory lock on `sprite.pxo.lock` (`flock` on Unix,
    `LockFileEx` on Windows) with a short timeout. The lock file stays on
    disk (D32).
@@ -157,8 +157,10 @@ type Change struct {
 `ops.Revert` and `ops.Reapply` apply a `Change` backwards or forwards, which
 is all that undo and redo need. The log encoding of a `Change` is in D31.
 
-- The CLI turns each `Spec` into a cobra command.
-- The batch parser turns each script line into the same `Args`.
+- The CLI turns each `Spec` into a cobra command (D37).
+- `ops.Parse` turns tokens into `Args`, and `ops.Format` turns `Args` back
+  into the canonical line that the log stores (D34). The CLI uses them, and
+  the batch parser will turn each script line into the same `Args` with them.
 - The MCP server exposes a small set of tools that call into the registry (see
   [agent-workflow.md](agent-workflow.md#mcp-server)).
 - `pixopher schema --json` dumps all specs for agents and tooling.

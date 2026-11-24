@@ -309,3 +309,72 @@ Windows, come from `golang.org/x/sys`. The standard library has no
 `LockFileEx`. The license is BSD-3-Clause, which is compatible with D19.
 Other platforms (such as wasm) get no lock; `--expect-rev` still detects
 conflicting writes.
+
+**D34: Argument text forms and canonical script lines** (2026-11-25)
+`ops.Parse` (`Split` then `Build`) turns tokens into `Args`, and
+`ops.Format` turns `Args` back into the canonical line stored in
+`Call.Line` and the log's `ops`. The CLI uses them now, and batch scripts
+will use the same functions.
+- **Values**: points `x,y`; sizes `w,h` or `wxh`, both at least 1; rects
+  `x,y,w,h`, or `x,y w,h` as a positional; ints in decimal; bools
+  `true`/`false` (anything `strconv.ParseBool` reads); enums must match a
+  listed value exactly; colors are kept as raw text and resolved by the op.
+- **Canonical form**: the op name, then positionals in spec order, then flags
+  in spec order. Arguments at their default are left out, and so are
+  trailing optional positionals. Sizes are written `w,h` and rects
+  `x,y,w,h`. The one-token rect form is the only one that works as a flag
+  value. Bools are written `--fill`, or `--fill=false` when the default is
+  true. Strings that need it get shell-style single quotes. Common flags
+  (`-m`, `--as`, ...) are never part of the line.
+- **Defaults**: `Build` fills in missing arguments that have a `Default`, so
+  ops never repeat a default. `Register` rejects defaults that don't parse,
+  bool positionals, a default on a required argument, and short flags that
+  are digits or longer than one letter.
+- **Errors**: malformed text, missing or extra positionals, unknown flags
+  and flags given twice are `usage` errors (exit 1) with `arg` set when one
+  argument is at fault.
+*Why*: logged lines are replayed and shown as captions, so one spelling per
+call keeps logs diffable and replays identical. A rect written as one token
+works both as a positional and as a flag.
+
+**D35: `use` is a plain command, not an op** (2026-11-25)
+`use <file>` changes no document, so it doesn't fit `Op.Apply` and is
+hand-written like `version`. It is still listed under the roadmap's M1 ops.
+It fails with `no_file` when the file is missing or is a directory. It
+stores the path cleaned, with forward slashes, plus a newline, in
+`.pixopher/current`. A relative path is relative to the working directory,
+which is also the only place resolution looks for `.pixopher/current`.
+Resolution ignores an empty current file. It fails with `no_file` when the
+stored file no longer exists, rather than falling through to the
+only-`*.pxo` rule.
+*Why*: a stale `use` silently switching to another file would make edits
+land in the wrong document.
+
+**D36: CLI output and the error envelope** (2026-11-25)
+- With `--json`, stdout gets exactly one JSON line, for success and for
+  errors alike, and nothing is written to stderr. HTML characters are not
+  escaped.
+- Without `--json`, errors go to stderr as `error: ...` and `hint: ...`.
+- `errs.Error` serializes as `{"code", "message", "hint"?, "arg"?}`.
+- Errors that aren't `*errs.Error` come from cobra (unknown command, wrong
+  argument count, bad flag on a cobra-parsed command) and become `usage`.
+  Those from the engine's file system calls become `io`.
+- When flags were never parsed (an unknown command or a bad flag), the raw
+  arguments are scanned for `--json` to choose the format.
+- `version --json` is `{"ok", "version", "commit", "date"}`, which settles
+  D21's consequence. `use --json` is `{"ok", "file"}`.
+*Why*: agents read stdout. Getting one parseable line whatever happened
+means they never have to merge two streams.
+
+**D37: Generated commands parse their own flags** (2026-11-25)
+Generated op commands set cobra's `DisableFlagParsing` and parse every
+token with `ops.Split`. The common flags are added to the op's own. The
+pflag definitions on the command only feed `--help`, and `-h`/`--help`
+before `--` shows help. `--json` stays a persistent root flag for the other
+commands. An op flag that reuses a common flag's name or short letter, or
+`help`/`h`, makes the generator panic. So does an op with `Mutates: false`,
+until observation ops get an output channel (see open-questions.md).
+*Why*: pflag reads `-2,-2` as the shorthand flag `-2`, so negative
+coordinates would need `--`. Parsing with the same code that batch scripts
+will use also keeps the two interfaces from drifting apart.
+*Consequences*: shell completion doesn't complete the flags of op commands.

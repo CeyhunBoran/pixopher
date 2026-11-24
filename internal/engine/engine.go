@@ -36,7 +36,7 @@ type Step struct {
 }
 
 // Result is the outcome of a transaction. Its JSON form is the --json
-// output of a mutating command (docs/cli.md#output).
+// output of a mutating command (docs/cli.md#output-done).
 type Result struct {
 	OK       bool     `json:"ok"`
 	Rev      int      `json:"rev"`               // rev after the transaction (would-be rev for a dry run)

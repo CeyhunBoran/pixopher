@@ -21,6 +21,24 @@ Questions that are not decided yet. When one is resolved, move the answer to
   against the current document (cel, canvas, palette) before they are
   applied. Decide with `undo` in M1.
 
+- **Observation op output**: `Op.Apply` only records changes. `info`,
+  `show`, `get` and `stats` need a way to return a result with both a human
+  and a `--json` form (a result value on `Ctx`, or a separate
+  `Observe(doc, args) (any, error)` interface). Until it is decided, the CLI
+  generator rejects ops with `Mutates: false` (D37). Decide with `info`.
+- **Repeated argument groups**: `px <x,y> <color> [<x,y> <color> ...]`
+  repeats a pair, and `polyline`/`poly` repeat points followed by one color.
+  `ArgSpec.Repeat` only lets the last positional repeat. Extend the spec
+  (a trailing group of repeating positionals, or a repeat followed by fixed
+  ones) when `px` lands.
+- **`new` and file resolution**: `new <file>` takes a path that doesn't
+  exist yet, so it must skip resolution and the leading-`.pxo` rule. It
+  also creates rather than applies. Is that a spec marker (`NoDoc`,
+  `Creates`) or a hand-written command? Decide with `new`.
+- **Positional strings starting with `-`**: a string or color positional
+  such as `-x` is read as a flag unless it follows `--`. `ops.Format`
+  doesn't write a `--` for it. No op takes such a value yet.
+
 - **Windows**: are locking and atomic rename reliable enough? Should the
   Windows server use named pipes or localhost TCP + token?
 - **Performance budget for 1024x1024**: is parse+serialize per command

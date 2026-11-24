@@ -67,12 +67,13 @@ func ExitCode(c Code) int {
 
 // Error is a structured error with a stable code. Message says what went
 // wrong, Hint (optional) says how to fix it, and Arg (optional) names the
-// argument at fault.
+// argument at fault. Its JSON form is the "error" object of the --json
+// error envelope (docs/cli.md#output-done).
 type Error struct {
-	Code    Code
-	Message string
-	Hint    string
-	Arg     string
+	Code    Code   `json:"code"`
+	Message string `json:"message"`
+	Hint    string `json:"hint,omitempty"`
+	Arg     string `json:"arg,omitempty"`
 }
 
 func (e *Error) Error() string { return e.Message }
