@@ -75,6 +75,11 @@ exit 1
 --- stdout
 {"ok":false,"error":{"code":"usage","message":"unknown flag --bogus","hint":"see `pixopher mark --help`"}}
 
+$ pxo mark 1,1 ink --json=1 --bogus
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"unknown flag --bogus","hint":"see `pixopher mark --help`"}}
+
 $ pxo mark 1,1 nosuch --json
 exit 2
 --- stdout

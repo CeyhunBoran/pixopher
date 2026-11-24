@@ -159,6 +159,7 @@ func TestTranscript(t *testing.T) {
 	s.sh("mark 1,1 ink extra")
 	s.sh("mark 1,1 ink --style dotted --json")
 	s.sh("mark 1,1 ink --bogus --json")
+	s.sh("mark 1,1 ink --json=1 --bogus")
 	s.sh("mark 1,1 nosuch --json")
 	s.sh("mark 1,1 ink --expect-rev 1 --json")
 	s.sh("mark -f other.pxo 1,1 ink --json")

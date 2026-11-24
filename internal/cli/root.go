@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -116,13 +117,16 @@ func (st *state) jsonOn(cmd *cobra.Command, args []string) bool {
 		}
 	}
 	for _, a := range args {
-		switch a {
-		case "--":
-			return st.envJSON()
-		case "--json", "--json=true":
+		if a == "--" {
+			break
+		}
+		if a == "--json" {
 			return true
-		case "--json=false":
-			return false
+		}
+		if v, ok := strings.CutPrefix(a, "--json="); ok {
+			if b, err := strconv.ParseBool(v); err == nil {
+				return b
+			}
 		}
 	}
 	return st.envJSON()

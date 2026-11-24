@@ -35,7 +35,7 @@ already includes layers and frames, but only one of each is exposed.
 - [x] History log JSONL: entries with tx ids and undo deltas, written and read
 - [ ] `undo`, `redo`, `log`
 - [x] Op registry core types: spec, args, recording ctx, change, registry
-- [x] Cobra generation from specs (arg parsing and canonical lines, common flags, `--json` and the error envelope)
+- [x] Cobra generation from specs for mutating ops (arg parsing and canonical lines, common flags, `--json` and the error envelope); observation ops come with `info`
 - [ ] Ops: `new`, `info`, `use`, `clear`, `px`, `line` (pixel-perfect), `rect`, `fill`, `erase`, `replace`
 - [ ] `palette list/add/set/rename/rm`, `ramp add/rm`; built-ins `default` and `sweetie16`
 - [ ] Observation: `show --grid --rulers --legend`, `get`, `stats`
