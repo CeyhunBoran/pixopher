@@ -91,14 +91,22 @@ goes to stderr:
 ```
 
 `hint` and `arg` are omitted when empty. Without `--json`, stderr gets
-`error: <message>` and, when there is one, `hint: <hint>`. A `usage` error
+`error[<code>]: <message>` and, when there is one, `hint: <hint>`
+(D44). A `usage` error
 without its own hint gets ``see `pixopher <command> --help` ``.
 
 A malformed argument (`1;1` for a point, an unknown enum value, a missing
 or extra positional, an unknown flag) is a `usage` error. `arg` names the
 argument when it is one the command declares, so it is absent for an
-unknown flag or an extra positional. A well-formed value the document rejects (off the
-canvas, an unknown color) is a domain error with its own code.
+unknown flag or an extra positional. A well-formed value the document
+rejects (off the canvas, an unknown color) is a domain error with its own
+code.
+
+Colors are the exception to the "malformed is `usage`" rule. Whether a
+color text is a key, a name or a ramp step depends on the document (its key
+width and palette), so colors are checked against the document, and both
+`invalid_color` and `unknown_color` are domain errors (exit 2), even for a
+typo (D43).
 
 `PIXOPHER_JSON` turns `--json` on globally, which is handy for agents. Any
 value Go's `strconv.ParseBool` reads as true counts (`1`, `t`, `true`,
@@ -125,7 +133,8 @@ value Go's `strconv.ParseBool` reads as true counts (`1`, `t`, `true`,
 `line`), `io`, `unsupported_format`, `server_unavailable`.
 
 Codes are stable. They are part of the public API, and adding one is a minor
-change.
+change. Argument defaults are public API too: logged lines leave defaults
+out, so changing a default is a breaking change (D42).
 
 ## Command reference
 

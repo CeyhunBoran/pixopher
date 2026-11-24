@@ -379,3 +379,70 @@ until observation ops get an output channel (see open-questions.md).
 coordinates would need `--`. Parsing with the same code that batch scripts
 will use also keeps the two interfaces from drifting apart.
 *Consequences*: shell completion doesn't complete the flags of op commands.
+
+**D38: Observation ops implement a separate read-only interface** (2026-11-25)
+Ops that only look at a document (`info`, `show`, `get`, `stats`, later
+`lint`, `diff`, ...) implement their own interface instead of `Op.Apply`:
+they get the loaded document and their `Args` and return a report, which
+has a JSON form for `--json` and a human form. Their spec has
+`Mutates: false`. They take no lock and never go through a transaction, so
+they can't write, bump the rev or log. The exact Go shape lands with
+`info`. This settles the open question from D37, and the generator accepts
+these ops from then on.
+*Why*: a read-only op that can't write by construction is safer than one
+trusted not to. A typed report gives a stable `--json` shape per command.
+*Consequences*: the generator, `schema` and MCP handle two kinds of op.
+
+**D39: `new` is a registry op marked as creating its document** (2026-11-25)
+A spec flag (`Creates`) marks ops that make a document instead of applying
+to one. For them the generator skips file resolution and the
+leading-`.pxo` rule: the file is the op's own required positional. The
+engine gets a create path that fails with `file_exists` unless `--force`
+is given, and writes the new document (rev 0) with the same atomic write.
+*Why*: `new` is the first command an agent runs, so it must appear in
+`schema`, the guide and MCP like every other op. A hand-written command
+would hide it from them.
+*Consequences*: one special case in the generator and the engine.
+
+**D40: Trailing repeat groups** (2026-11-25)
+All trailing positionals marked `Repeat` form one group that repeats
+together: `px <at> <color> [<at> <color> ...]`. Each one's value is a
+slice, and all of them have the same length. A required group needs at
+least one full repetition, and a partial last repetition is a `usage`
+error. Repeated positionals followed by fixed ones (`polyline`, `poly`)
+are left for M2. This supersedes "only the last positional may repeat".
+*Why*: it keeps `px` as cli.md describes it (a color per pixel) without
+building M2's grammar early.
+
+**D41: The canonical form writes `--` before positionals that look like flags** (2026-11-25)
+When a positional's text starts with `-` and a non-digit, `ops.Format`
+writes the flags first, then `--`, then the positionals, so the line parses
+back the same. Lines without such a value don't change. Implemented with
+the batch parser in M2; no op takes such a value before then.
+
+**D42: Argument defaults are public API** (2026-11-25)
+Logged lines leave defaults out (D34), so a replay of an old log uses the
+defaults of the binary replaying it. Changing a default is therefore a
+breaking change, like renaming an error code.
+*Why*: it keeps logs and captions short, which matters for committed logs
+(D18) and live captions, and keeps replays stable as long as defaults hold.
+Logging every argument would be safer but would bury each line in
+defaults.
+*Consequences*: when `schema --json` lands (M8), a golden test of it
+guards the defaults of every op.
+
+**D43: Color errors are domain errors** (2026-11-25)
+Colors stay raw text until the op resolves them, and `invalid_color` and
+`unknown_color` are domain errors (exit 2), even for a typo like `#ggg`.
+This is the one exception to D34's "malformed text is `usage`".
+*Why*: whether a text is a key, a name or a ramp step depends on the
+document's key width and palette (D28), so a color can't be judged without
+the document.
+
+**D44: Human error lines show the code** (2026-11-25)
+Without `--json`, an error prints `error[<code>]: <message>`, then
+`hint: <hint>` when there is one. This supersedes the `error: ...` form in
+D36. With `--json`, errors still go to stdout as one line (D36 is
+unchanged there).
+*Why*: people can search for the code and match it against the docs, and it
+lines up with batch script errors, which also lead with a code.

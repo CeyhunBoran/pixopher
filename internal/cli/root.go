@@ -96,7 +96,7 @@ func execute(info BuildInfo, cfg config, args []string, stdout, stderr io.Writer
 			Error *errs.Error `json:"error"`
 		}{false, e})
 	} else {
-		_, _ = fmt.Fprintf(stderr, "error: %s\n", e.Message)
+		_, _ = fmt.Fprintf(stderr, "error[%s]: %s\n", e.Code, e.Message)
 		if e.Hint != "" {
 			_, _ = fmt.Fprintf(stderr, "hint: %s\n", e.Hint)
 		}
