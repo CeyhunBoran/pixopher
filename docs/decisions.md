@@ -595,3 +595,11 @@ a conflict, because nothing would be lost.
   form is one line per entry, `rev 3  t_0003  cli  <ts>  px 2,2 ink  -m
   'the eyes'`, with `undo rev 2` for undo entries, `  (undone)` for undone
   ones, and `no history` when there is none.
+
+**D51: Conflict pixels name their cel** (2026-11-25)
+Supersedes the `[x, y]` pixel form in D50. Each entry of `pixels` in
+`undo_conflict` details is `[layer, frame, x, y]`, with the layer and frame
+as indices (as stored in the log), sorted by layer, frame, y, then x.
+*Why*: from M4 a document has several layers and frames, and `[x, y]`
+would no longer say which cel changed. Changing it now, before any
+release, is free; after 0.1 it would be breaking.

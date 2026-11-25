@@ -156,7 +156,7 @@ func TestUndoConflict(t *testing.T) {
 	apply(t, path, "a", step(t, "", "paint o 1,1 2,2"))
 	apply(t, path, "b", step(t, "", "paint #ff0000 1,1"))
 	e := undoErr(t, path, "a", history.Request{}, errs.UndoConflict)
-	if got, want := asJSON(t, e), `{"code":"undo_conflict","message":"undoing rev 1 (t_0001) would overwrite later changes to 1 pixel","hint":"they were changed by t_0002; pass --force to undo anyway","details":{"target":1,"count":1,"pixels":[[1,1]],"txs":["t_0002"]}}`; got != want {
+	if got, want := asJSON(t, e), `{"code":"undo_conflict","message":"undoing rev 1 (t_0001) would overwrite later changes to 1 pixel","hint":"they were changed by t_0002; pass --force to undo anyway","details":{"target":1,"count":1,"pixels":[[0,0,1,1]],"txs":["t_0002"]}}`; got != want {
 		t.Fatalf("error = %s\nwant    %s", got, want)
 	}
 	if errs.ExitCode(e.Code) != errs.ExitConflict {

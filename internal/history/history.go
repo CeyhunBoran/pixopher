@@ -95,7 +95,7 @@ type Step struct {
 type Conflict struct {
 	Target int      `json:"target"` // rev of the entry being undone or redone
 	Count  int      `json:"count"`  // pixels that changed since
-	Pixels [][2]int `json:"pixels"` // the first MaxConflictPixels of them as [x, y], row-major
+	Pixels [][4]int `json:"pixels"` // the first MaxConflictPixels of them as [layer, frame, x, y], sorted (D51)
 	Meta   bool     `json:"meta,omitempty"`
 	Txs    []string `json:"txs"` // later transactions that changed them, oldest first
 }
@@ -316,13 +316,13 @@ func (c Chain) apply(d *doc.Doc, t pxofile.Entry, req Request) (ops.Change, erro
 	}
 
 	if !req.Force {
-		conf := Conflict{Target: t.Rev, Pixels: [][2]int{}, Txs: []string{}}
+		conf := Conflict{Target: t.Rev, Pixels: [][4]int{}, Txs: []string{}}
 		changed := map[pixKey]bool{}
 		for _, p := range pixels {
 			if d.Pixel(p.Layer, p.Frame, p.X, p.Y) != want(p) {
 				changed[pixKey{p.Layer, p.Frame, p.X, p.Y}] = true
 				if conf.Count++; conf.Count <= MaxConflictPixels {
-					conf.Pixels = append(conf.Pixels, [2]int{p.X, p.Y})
+					conf.Pixels = append(conf.Pixels, [4]int{p.Layer, p.Frame, p.X, p.Y})
 				}
 			}
 		}

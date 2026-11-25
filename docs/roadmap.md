@@ -39,6 +39,7 @@ already includes layers and frames, but only one of each is exposed.
 - [x] Ops: `new`, `use`, `clear`, `px`, `line` (pixel-perfect), `rect`, `fill`, `erase`, `replace`
 - [ ] Op: `info` (the first observation op, D38)
 - [ ] `palette list/add/set/rename/rm`, `ramp add/rm`; built-ins `default` and `sweetie16`; `new --palette`, with `default` when it is not given and `none` for an empty palette (D46)
+- [ ] Palette-aware undo: compare palette entries one by one instead of the whole header (D31, D49), so another author's new color doesn't block undo, and settle forced restores that reuse a palette index ([open-questions.md](open-questions.md))
 - [ ] Observation: `show --grid --rulers --legend`, `get`, `stats`
 - [ ] `export` PNG with `--scale`, indexed when ≤256 colors
 - [ ] `--json` output, error codes and exit codes from [cli.md](cli.md)
@@ -128,8 +129,8 @@ matches its golden file.
 
 ## M8: Agent integration → release 0.4
 
-- [ ] `schema --json` from the registry
-- [ ] `guide` and topics, `guide --install`, craft notes
+- [ ] `schema --json` from the registry, plus the engine commands `undo`, `redo` and `log`, which are not ops (D50)
+- [ ] `guide` and topics, `guide --install`, craft notes; the guide covers `undo`, `redo` and `log` too (D50)
 - [ ] `mcp` stdio server with the tools and resources in [agent-workflow.md](agent-workflow.md#mcp-server), `--root` sandboxing
 - [ ] MCP `look` returns inline image content
 

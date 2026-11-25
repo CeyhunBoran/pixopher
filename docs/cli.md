@@ -270,10 +270,11 @@ acted on, in order:
 
 (`"redone"` for `redo`); the human line is
 `ok rev 15  +24px  bbox 6,1 4,3  undid t_0012`. An `undo_conflict` from
-later changes has `details` in its error (D50):
+later changes has `details` in its error (D50). Each pixel is
+`[layer, frame, x, y]`, with layer and frame as indices (D51):
 
 ```json
-{"ok": false, "error": {"code": "undo_conflict", "message": "undoing rev 2 (t_0002) would overwrite later changes to 1 pixel", "hint": "they were changed by t_0003; pass --force to undo anyway", "details": {"target": 2, "count": 1, "pixels": [[1, 1]], "txs": ["t_0003"]}}}
+{"ok": false, "error": {"code": "undo_conflict", "message": "undoing rev 2 (t_0002) would overwrite later changes to 1 pixel", "hint": "they were changed by t_0003; pass --force to undo anyway", "details": {"target": 2, "count": 1, "pixels": [[0, 0, 1, 1]], "txs": ["t_0003"]}}}
 ```
 
 `log` shows the effective history newest first, one line per entry

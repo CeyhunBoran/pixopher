@@ -18,6 +18,7 @@ Questions that are not decided yet. When one is resolved, move the answer to
   B's auto entry lands at that index), B's pixels silently take A's color.
   The result still validates, so D49's check doesn't catch it. Should a
   forced restore merge palettes, or refuse when an index changes meaning?
+  Decide with the palette-aware undo item in M1 (roadmap).
 
 - **Windows**: are locking and atomic rename reliable enough? Should the
   Windows server use named pipes or localhost TCP + token?
