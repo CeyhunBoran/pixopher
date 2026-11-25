@@ -14,6 +14,7 @@ import (
 	"github.com/CeyhunBoran/pixopher/internal/engine"
 	"github.com/CeyhunBoran/pixopher/internal/errs"
 	"github.com/CeyhunBoran/pixopher/internal/golden"
+	"github.com/CeyhunBoran/pixopher/internal/history"
 	"github.com/CeyhunBoran/pixopher/internal/ops"
 	"github.com/CeyhunBoran/pixopher/internal/pxofile"
 )
@@ -226,6 +227,15 @@ func TestBuiltinTranscript(t *testing.T) {
 	s.sh("replace #f4f4f4 #a7f070 --json")
 	s.sh("clear --dry-run --json")
 
+	// Observation.
+	s.sh("info")
+	s.sh("info --json")
+	s.sh("info hero.pxo --json")
+	s.sh("info -f hero.pxo")
+	s.env["PIXOPHER_JSON"] = "1"
+	s.sh("info")
+	delete(s.env, "PIXOPHER_JSON")
+
 	// Errors.
 	s.sh("px 16,0 #000000 --json")
 	s.sh("px 1,1 #000000 2,2 --json")
@@ -233,9 +243,15 @@ func TestBuiltinTranscript(t *testing.T) {
 	s.sh("line 0,0 3,3 #000000 --width 0 --json")
 	s.sh("fill 0,99 #000000")
 	s.sh("new -f hero.pxo x.pxo --json")
+	s.sh("info nosuch.pxo --json")
+	s.sh("info extra --json")
+	s.sh("info -m note --json")
+	s.sh("info --dry-run")
+	s.sh("info --expect-rev 3 --json")
 
 	s.sh("px --help")
 	s.sh("new --help")
+	s.sh("info --help")
 
 	golden.Check(t, filepath.Join(testdata, "builtin.golden"), []byte(s.out.String()))
 	for _, f := range []string{"hero.pxo", "hero.pxo.log"} {
@@ -256,13 +272,10 @@ func TestGeneratorRejects(t *testing.T) {
 		s.Args = append(s.Args, a)
 		return specOp{s}
 	}
-	observe := markOp{}.Spec()
-	observe.Mutates = false
 	for name, op := range map[string]ops.Op{
 		"name clash":  clash(ops.ArgSpec{Name: "message", Kind: ops.KindString, Flag: true}),
 		"short clash": clash(ops.ArgSpec{Name: "fill", Short: "f", Kind: ops.KindBool, Flag: true}),
 		"help clash":  clash(ops.ArgSpec{Name: "hollow", Short: "h", Kind: ops.KindBool, Flag: true}),
-		"observation": specOp{observe},
 	} {
 		t.Run(name, func(t *testing.T) {
 			r := ops.NewRegistry()
@@ -288,3 +301,93 @@ func TestDefaultRegistryBuilds(*testing.T) {
 	// Every built-in op must turn into a command without panicking.
 	NewRoot(BuildInfo{})
 }
+
+// loadOnly is a backend that only loads documents; any other call fails
+// the test.
+type loadOnly struct {
+	engine.Direct
+	t *testing.T
+}
+
+func (b loadOnly) Apply(string, []engine.Step, engine.Options) (engine.Result, error) {
+	b.t.Fatal("observation op called Apply")
+	return engine.Result{}, nil
+}
+
+func (b loadOnly) Create(string, ops.Call, engine.Options) (engine.Result, error) {
+	b.t.Fatal("observation op called Create")
+	return engine.Result{}, nil
+}
+
+func (b loadOnly) Undo(string, history.Request, engine.Options) (engine.Result, error) {
+	b.t.Fatal("observation op called Undo")
+	return engine.Result{}, nil
+}
+
+// TestObserveOnlyReads: an observation op only loads its document (D38),
+// so the document stays byte for byte the same and no lock file or log
+// appears.
+func TestObserveOnlyReads(t *testing.T) {
+	t.Chdir(t.TempDir())
+	writeDoc(t, "hero.pxo")
+	before, err := os.ReadFile("hero.pxo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := testConfig(nil)
+	cfg.ops, cfg.backend = ops.Default, loadOnly{t: t}
+	var stdout, stderr bytes.Buffer
+	if code := execute(BuildInfo{}, cfg, []string{"info", "--json"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit %d: %s%s", code, stdout.String(), stderr.String())
+	}
+	after, err := os.ReadFile("hero.pxo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(after, before) {
+		t.Fatal("info changed the document")
+	}
+	for _, f := range []string{engine.LockPath("hero.pxo"), pxofile.LogPath("hero.pxo")} {
+		if _, err := os.Stat(f); err == nil {
+			t.Fatalf("info created %s", f)
+		}
+	}
+}
+
+// TestWriteReport: "ok": true goes before the report's own fields, and an
+// empty report is just {"ok":true}.
+func TestWriteReport(t *testing.T) {
+	for _, tt := range []struct {
+		rep  ops.Report
+		want string
+	}{
+		{emptyReport{}, `{"ok":true}` + "\n"},
+		{&tagReport{Tag: "<a&b>"}, `{"ok":true,"tag":"<a&b>"}` + "\n"},
+	} {
+		var b bytes.Buffer
+		if err := writeReport(&b, tt.rep); err != nil {
+			t.Fatal(err)
+		}
+		if b.String() != tt.want {
+			t.Fatalf("got %q, want %q", b.String(), tt.want)
+		}
+	}
+	var b bytes.Buffer
+	if err := writeReport(&b, listReport{}); errs.CodeOf(err) != errs.IO {
+		t.Fatalf("non-object report: err = %v", err)
+	}
+}
+
+type emptyReport struct{}
+
+func (emptyReport) Text() string { return "" }
+
+type tagReport struct {
+	Tag string `json:"tag"`
+}
+
+func (*tagReport) Text() string { return "" }
+
+type listReport []int
+
+func (listReport) Text() string { return "" }

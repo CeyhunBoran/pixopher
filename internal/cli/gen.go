@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -41,21 +43,21 @@ var (
 
 // addOpCommand adds the command generated from op's spec. A name with
 // spaces, such as "palette add", becomes a subcommand of a group command.
-// It panics on specs it can't turn into a command, which any test that
-// builds the tree catches.
+// It panics on specs it can't turn into a command (a flag that clashes
+// with a common one), which any test that builds the tree catches.
 func addOpCommand(root *cobra.Command, op ops.Op, st *state) {
 	spec := op.Spec()
-	if !spec.Mutates {
-		// Observation ops need an output channel in ops.Op; it arrives with
-		// the first one (info, show).
-		panic(fmt.Sprintf("cli: %s: observation ops are not supported yet", spec.Name))
-	}
 	common := append([]ops.ArgSpec{fileFlag, jsonFlag}, mutateFlags...)
 	helpFlags := append([]ops.ArgSpec{fileFlag}, mutateFlags...)
-	if spec.Creates {
-		if _, ok := op.(ops.Creator); !ok {
-			panic(fmt.Sprintf("cli: %s: a creating op must implement ops.Creator", spec.Name))
-		}
+	// ops.Registry.Register has checked that the op implements what its
+	// spec says: Mutator, Creator or Observer (D52).
+	switch {
+	case !spec.Mutates:
+		// Observation ops only read (D38, D52): no -m, --as, --expect-rev
+		// or --dry-run.
+		common = []ops.ArgSpec{fileFlag, jsonFlag}
+		helpFlags = []ops.ArgSpec{fileFlag}
+	case spec.Creates:
 		common = append([]ops.ArgSpec{jsonFlag}, createFlags...)
 		helpFlags = createFlags
 	}
@@ -124,13 +126,16 @@ func (st *state) runOp(cmd *cobra.Command, op ops.Op, common []ops.ArgSpec, toke
 		return err
 	}
 	if spec.Creates {
-		return st.runCreate(cmd, op, c, pos, flags)
+		return st.runCreate(cmd, op.(ops.Creator), c, pos, flags)
 	}
 	args, path, err := st.resolve(spec.Args, c, pos, flags)
 	if err != nil {
 		return err
 	}
-	call := ops.Call{Op: op, Args: args, Line: ops.Format(spec, args)}
+	if o, ok := op.(ops.Observer); ok {
+		return st.runObserve(cmd, o, args, path)
+	}
+	call := ops.Call{Op: op.(ops.Mutator), Args: args, Line: ops.Format(spec, args)}
 	res, err := st.cfg.backend.Apply(path, []engine.Step{{Msg: c.String("message"), Calls: []ops.Call{call}}}, st.options(c))
 	return st.report(cmd, res, err)
 }
@@ -205,7 +210,7 @@ func (st *state) options(c ops.Args) engine.Options {
 
 // runCreate runs a creating op such as new (D39): the document is the op's
 // own file positional, so there is no file resolution.
-func (st *state) runCreate(cmd *cobra.Command, op ops.Op, c ops.Args, pos []string, flags map[string]string) error {
+func (st *state) runCreate(cmd *cobra.Command, op ops.Creator, c ops.Args, pos []string, flags map[string]string) error {
 	spec := op.Spec()
 	args, err := ops.Build(spec.Args, pos, flags)
 	if err != nil {
@@ -215,6 +220,53 @@ func (st *state) runCreate(cmd *cobra.Command, op ops.Op, c ops.Args, pos []stri
 	call := ops.Call{Op: op, Args: args, Line: ops.Format(spec, args)}
 	res, err := st.cfg.backend.Create(args.String("file"), call, opt)
 	return st.report(cmd, res, err)
+}
+
+// runObserve runs an observation op (D38): it loads the document without a
+// lock, so it never waits for a writer, and prints the op's report.
+func (st *state) runObserve(cmd *cobra.Command, op ops.Observer, args ops.Args, path string) error {
+	d, err := st.cfg.backend.Load(path)
+	if err != nil {
+		return st.report(cmd, engine.Result{}, err)
+	}
+	rep, err := op.Observe(d, args)
+	if err != nil {
+		return st.report(cmd, engine.Result{}, err)
+	}
+	if *st.json {
+		return writeReport(cmd.OutOrStdout(), rep)
+	}
+	if _, err := io.WriteString(cmd.OutOrStdout(), rep.Text()); err != nil {
+		return &errs.Error{Code: errs.IO, Message: err.Error()}
+	}
+	return nil
+}
+
+// writeReport writes an observation report as one line of JSON, with
+// "ok": true before the report's own fields (D52).
+func writeReport(w io.Writer, rep ops.Report) error {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(rep); err != nil {
+		return &errs.Error{Code: errs.IO, Message: err.Error()}
+	}
+	body := bytes.TrimSpace(buf.Bytes())
+	if len(body) < 2 || body[0] != '{' {
+		return &errs.Error{Code: errs.IO, Message: fmt.Sprintf("report %T is not a JSON object", rep)}
+	}
+	line := []byte(`{"ok":true`)
+	if rest := body[1:]; string(rest) != "}" {
+		line = append(line, ',')
+		line = append(line, rest...)
+	} else {
+		line = append(line, '}')
+	}
+	line = append(line, '\n')
+	if _, err := w.Write(line); err != nil {
+		return &errs.Error{Code: errs.IO, Message: err.Error()}
+	}
+	return nil
 }
 
 // report prints a transaction result, or returns its error.

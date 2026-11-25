@@ -142,10 +142,19 @@ type Spec struct {
     Creates  bool            // new: makes the document instead of changing one (D39, D46)
 }
 
-type Op interface {
-    Spec() Spec
+type Op interface{ Spec() Spec }
+
+type Mutator interface { // Mutates
+    Op
     Apply(ctx *Ctx, args Args) error // Ctx has doc, target layer/frame (later: symmetry, selection)
 }
+
+type Observer interface { // !Mutates: info, show, get, stats, lint (D38, D52)
+    Op
+    Observe(d *doc.Doc, args Args) (Report, error) // no Ctx, no lock, no log
+}
+
+type Report interface{ Text() string } // human form; the JSON form is the value itself
 
 // Ctx records every pixel written through ctx.Set and snapshots the header;
 // ctx.Finish() returns the step's Change (D30).

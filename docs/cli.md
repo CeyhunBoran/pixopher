@@ -64,6 +64,11 @@ See [palettes.md](palettes.md#color-syntax-everywhere-a-color-is-accepted-done).
 takes only `--dry-run`, `--json` and its own `--force` (D46). The others arrive with the features they control. An op can't
 define a flag with the same name or short letter as a common flag.
 
+Observation commands (`info`, and later `show`, `get`, `stats`, ...) take
+only `-f` and `--json`. They never write, so the other common flags are
+`usage` errors there, and they read the document without waiting for the
+lock (D38, D52).
+
 Flags may appear anywhere on the command line, before or after the
 positionals. A token that starts with `-` and a digit is a value, not a
 flag, so negative coordinates need no quoting (`pxo rect -2,-2 5,5 ink`).
@@ -148,12 +153,34 @@ Groups and commands. `[M#]` is the roadmap milestone that delivers the command.
 
 ```
 pxo new <file> [--size 32x32] [--bg <color>] [--force]   [done]  (--palette <name|file|none> comes with the built-in palettes, D46)
-pxo info [--json]                     size, rev, palette size, layers, frames, regions, anchors   [M1]
+pxo info                              size, rev, palette size, layers, frames, regions, anchors   [done]
 pxo use <file>                        set current file for this directory   [done]
 pxo resize <w,h> [--anchor tl|c|...]  change canvas size, keeping pixels   [M6]
 pxo crop <rect|%region|auto>          crop canvas (auto = content bbox)   [M6]
 pxo clear [color]                     clear target cel, or fill it with color   [done]
 pxo migrate                           upgrade old format versions   [later]
+```
+
+`info --json` (D52):
+
+```json
+{"ok": true, "rev": 12, "size": [16, 16], "key_width": 1, "palette": 6,
+ "layers": [{"name": "body", "visible": true, "locked": false, "opacity": 255, "blend": "normal"}],
+ "frames": [{"duration_ms": 120}], "regions": {"flask": [3, 4, 10, 11]}, "anchors": {"cork": [8, 1]}}
+```
+
+`palette` counts the entries other than transparent, `layers` are bottom
+first, and `regions` and `anchors` are `{}` when there are none. Without
+`--json` it prints one labelled line each:
+
+```
+size     16x16
+rev      12
+palette  6 colors, key width 1
+layers   body, shine (hidden)
+frames   1 (120 ms)
+regions  flask 3,4 10,11
+anchors  cork 8,1
 ```
 
 ### Palette, ramps, variants

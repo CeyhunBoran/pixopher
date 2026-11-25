@@ -18,11 +18,15 @@ func NewRegistry() *Registry { return &Registry{ops: map[string]Op{}} }
 // schema and guide are generated from it.
 var Default = NewRegistry()
 
-// Register adds op. It panics on an invalid spec or a duplicate name, since
-// both are programming errors caught by any test that loads the registry.
+// Register adds op. It panics on an invalid spec, an op whose kind doesn't
+// match its spec, or a duplicate name, since all are programming errors
+// caught by any test that loads the registry.
 func (r *Registry) Register(op Op) {
 	s := op.Spec()
 	if err := s.check(); err != nil {
+		panic(err)
+	}
+	if err := checkKind(op, s); err != nil {
 		panic(err)
 	}
 	if _, dup := r.ops[s.Name]; dup {
@@ -51,6 +55,26 @@ func (r *Registry) All() []Op {
 		return strings.Compare(sa.Name, sb.Name)
 	})
 	return all
+}
+
+// checkKind checks that op implements the interface its spec asks for:
+// Mutator when it mutates, Creator when it creates, Observer otherwise
+// (D52).
+func checkKind(op Op, s Spec) error {
+	_, mut := op.(Mutator)
+	_, obs := op.(Observer)
+	_, cre := op.(Creator)
+	switch {
+	case mut && obs:
+		return fmt.Errorf("ops: %s: an op is a Mutator or an Observer, not both", s.Name)
+	case s.Mutates && !mut:
+		return fmt.Errorf("ops: %s: a mutating op must implement Mutator", s.Name)
+	case !s.Mutates && !obs:
+		return fmt.Errorf("ops: %s: an observation op must implement Observer", s.Name)
+	case s.Creates && !cre:
+		return fmt.Errorf("ops: %s: a creating op must implement Creator", s.Name)
+	}
+	return nil
 }
 
 // check reports spec mistakes that would break CLI or schema generation.

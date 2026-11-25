@@ -2,6 +2,7 @@ package ops
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -73,7 +74,7 @@ func call(t testing.TB, line string) (Call, error) {
 	if err != nil {
 		return Call{}, err
 	}
-	return Call{Op: op, Args: args, Line: Format(op.Spec(), args)}, nil
+	return Call{Op: op.(Mutator), Args: args, Line: Format(op.Spec(), args)}, nil
 }
 
 // TestBuiltinGolden applies each case's lines as one step, compares the
@@ -247,5 +248,47 @@ func TestNewCreate(t *testing.T) {
 	}
 	if c, _ := call(t, "new a.pxo"); c.Line != "new a.pxo" || c.Args.Size("size") != (Size{32, 32}) {
 		t.Fatalf("default size: %q %v", c.Line, c.Args.Size("size"))
+	}
+}
+
+// TestInfoGolden compares info's JSON and human forms with a golden file,
+// and checks that observing leaves the document unchanged.
+func TestInfoGolden(t *testing.T) {
+	for _, name := range []string{"potion", "blank", "layers"} {
+		t.Run(name, func(t *testing.T) {
+			fix := name
+			if name == "layers" {
+				fix = "blank"
+			}
+			d := fixture(t, fix)
+			if name == "layers" {
+				// Non-default layer settings, two frames and one color.
+				d.Layers = append(d.Layers, doc.Layer{Name: "shine", Locked: true, Opacity: 128, Blend: "multiply"})
+				d.Frames = append(d.Frames, doc.Frame{DurationMS: 80})
+				d.Palette.Entries = append(d.Palette.Entries, doc.Entry{Key: "o", Name: "ink", Color: doc.RGBA{A: 0xff}})
+				d.Anchors["eye"] = doc.Point{X: 2, Y: 3}
+			}
+			before := serialize(t, d)
+			op, _ := Default.Lookup("info")
+			args, err := Parse(op.Spec().Args, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rep, err := op.(Observer).Observe(d, args)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var buf bytes.Buffer
+			enc := json.NewEncoder(&buf)
+			enc.SetEscapeHTML(false)
+			if err := enc.Encode(rep); err != nil {
+				t.Fatal(err)
+			}
+			buf.WriteString("---\n" + rep.Text())
+			golden.Check(t, filepath.Join("testdata", "info", name+".golden"), buf.Bytes())
+			if !bytes.Equal(serialize(t, d), before) {
+				t.Fatal("info changed the document")
+			}
+		})
 	}
 }

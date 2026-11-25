@@ -603,3 +603,33 @@ as indices (as stored in the log), sorted by layer, frame, y, then x.
 *Why*: from M4 a document has several layers and frames, and `[x, y]`
 would no longer say which cel changed. Changing it now, before any
 release, is free; after 0.1 it would be breaking.
+
+**D52: The observation op interface, and `info` output** (2026-11-25)
+Settles the Go shape D38 left open, and supersedes D37's "an op with
+`Mutates: false` makes the generator panic".
+- **Interfaces**: `ops.Op` is only `Spec()`. A `Mutator` adds `Apply`, a
+  `Creator` is a `Mutator` with `Create`, and an `Observer` adds
+  `Observe(d *doc.Doc, args Args) (Report, error)`. `Report` has
+  `Text()` for the human form, and its `encoding/json` form is the
+  `--json` output. `Registry.Register` panics unless a spec with
+  `Mutates` has a `Mutator` (a `Creator` with `Creates`) and any other an
+  `Observer`, and never both. `ops.Call` holds a `Mutator`.
+- **CLI**: observation commands take `-f`, the leading `.pxo` positional
+  and `--json`, and no mutating flags (`-m`, `--as`, `--expect-rev` and
+  `--dry-run` are `usage` errors). They load the document without the lock.
+  `--json` prints `{"ok": true, ...}` with the report's fields after `ok`.
+- **`info --json`**: `{"ok", "rev", "size": [w, h], "key_width",
+  "palette", "layers", "frames", "regions", "anchors"}`. `palette` counts
+  the entries other than transparent. `layers` (bottom first) are
+  `{"name", "visible", "locked", "opacity", "blend"}`, and `frames` are
+  `{"duration_ms"}`. `regions` maps names to `[x, y, w, h]` and `anchors`
+  to `[x, y]` (default positions), `{}` when there are none. The human form
+  is one labelled line each for size, rev, palette, layers, frames,
+  regions and anchors.
+*Why*: splitting the interfaces makes a read-only op unable to write by
+construction, which is what D38 asked for. Lists of objects for layers and
+frames, rather than counts, let M4 add fields (tags, the active layer)
+without a breaking change. `key_width` is there because agents need it to
+read grids.
+*Consequences*: `schema` and MCP will check whether an op is a `Mutator`
+or an `Observer`.

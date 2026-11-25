@@ -1,0 +1,9 @@
+{"rev":0,"size":[8,8],"key_width":1,"palette":0,"layers":[{"name":"main","visible":true,"locked":false,"opacity":255,"blend":"normal"}],"frames":[{"duration_ms":100}],"regions":{},"anchors":{}}
+---
+size     8x8
+rev      0
+palette  0 colors, key width 1
+layers   main
+frames   1 (100 ms)
+regions  none
+anchors  none

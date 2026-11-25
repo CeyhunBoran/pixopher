@@ -4,9 +4,15 @@ import (
 	"github.com/CeyhunBoran/pixopher/internal/doc"
 )
 
-// Op is one registered operation.
+// Op is one registered operation. Every op is either a Mutator (its spec
+// has Mutates) or an Observer (D38, D52); Registry.Register checks this.
 type Op interface {
 	Spec() Spec
+}
+
+// Mutator is an op that changes a document.
+type Mutator interface {
+	Op
 	// Apply changes ctx.Doc. Pixel writes go through ctx.Set so they are
 	// recorded; header fields (palette, ramps, ...) may be changed directly,
 	// and Ctx.Finish detects that. On error the engine discards the document.
@@ -18,8 +24,25 @@ type Op interface {
 // Apply on it as the creating step (new paints --bg there) and writes the
 // result at rev 0, without a history entry.
 type Creator interface {
-	Op
+	Mutator
 	Create(args Args) (*doc.Doc, error)
+}
+
+// Observer is an op that only looks at a document (D38): info, and later
+// show, get, stats and lint. It gets the loaded document and never a Ctx,
+// so it can't write, bump the rev or log by construction. The engine takes
+// no lock for it. Observe must not modify d.
+type Observer interface {
+	Op
+	Observe(d *doc.Doc, args Args) (Report, error)
+}
+
+// Report is what an Observer returns. Its JSON form, from encoding/json
+// on the value, is the --json output after "ok": true, so it must marshal
+// to an object and its field names are public API (docs/cli.md). Text is
+// the human form, ending in a newline.
+type Report interface {
+	Text() string
 }
 
 // Args holds parsed argument values keyed by ArgSpec.Name: string for
@@ -54,9 +77,9 @@ func (a Args) Size(name string) Size { v, _ := a[name].(Size); return v }
 // Has reports whether the argument called name was given.
 func (a Args) Has(name string) bool { _, ok := a[name]; return ok }
 
-// Call is one op invocation.
+// Call is one invocation of a mutating op.
 type Call struct {
-	Op   Op
+	Op   Mutator
 	Args Args
 	// Line is the canonical script line from Format, such as
 	// "rect 6,1 4,3 ink". It is stored in the history log for replay and

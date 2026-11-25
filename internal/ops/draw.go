@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	for _, op := range []Op{newOp{}, clearOp{}, pxOp{}, lineOp{}, rectOp{}, fillOp{}, eraseOp{}, replaceOp{}} {
+	for _, op := range []Op{newOp{}, infoOp{}, clearOp{}, pxOp{}, lineOp{}, rectOp{}, fillOp{}, eraseOp{}, replaceOp{}} {
 		Default.Register(op)
 	}
 }

@@ -79,7 +79,7 @@ func paint(t testing.TB, line string) ops.Call {
 		pts = append(pts, p)
 	}
 	op, _ := testOps.Lookup(f[0])
-	return ops.Call{Op: op, Args: ops.Args{"color": f[1], "at": pts}, Line: line}
+	return ops.Call{Op: op.(ops.Mutator), Args: ops.Args{"color": f[1], "at": pts}, Line: line}
 }
 
 func step(t testing.TB, msg string, lines ...string) Step {
@@ -376,6 +376,24 @@ func TestLocked(t *testing.T) {
 	}
 }
 
+// TestLoadIgnoresLock: readers such as observation ops (D38) load without
+// the lock, so a writer holding it never blocks them.
+func TestLoadIgnoresLock(t *testing.T) {
+	path := newFile(t)
+	l, err := acquire(LockPath(path), time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = l.release() }()
+	start := time.Now()
+	if _, err := (Direct{}).Load(path); err != nil {
+		t.Fatal(err)
+	}
+	if time.Since(start) >= 50*time.Millisecond {
+		t.Fatal("Load waited for the lock")
+	}
+}
+
 // TestConcurrentWriters: the lock serializes writers, so no write is lost
 // and revs are 1..n with one entry each.
 func TestConcurrentWriters(t *testing.T) {
@@ -472,7 +490,7 @@ func BenchmarkApply64(b *testing.B) {
 	colors := []string{"o", "."}
 	b.ResetTimer()
 	for i := range b.N {
-		call := ops.Call{Op: op, Args: ops.Args{"color": colors[i%2], "at": pts}, Line: "paint"}
+		call := ops.Call{Op: op.(ops.Mutator), Args: ops.Args{"color": colors[i%2], "at": pts}, Line: "paint"}
 		if _, err := (Direct{}).Apply(path, []Step{{Calls: []ops.Call{call}}}, Options{}); err != nil {
 			b.Fatal(err)
 		}
@@ -490,7 +508,7 @@ func newCall(t testing.TB, tokens ...string) ops.Call {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return ops.Call{Op: op, Args: args, Line: ops.Format(op.Spec(), args)}
+	return ops.Call{Op: op.(ops.Mutator), Args: args, Line: ops.Format(op.Spec(), args)}
 }
 
 func TestCreate(t *testing.T) {

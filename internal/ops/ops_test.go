@@ -22,6 +22,19 @@ func (f fakeOp) Apply(c *Ctx, a Args) error {
 	return f.apply(c, a)
 }
 
+type fakeObserver struct{ spec Spec }
+
+func (f fakeObserver) Spec() Spec                           { return f.spec }
+func (fakeObserver) Observe(*doc.Doc, Args) (Report, error) { return nil, nil }
+
+type bothOp struct{ fakeOp }
+
+func (bothOp) Observe(*doc.Doc, Args) (Report, error) { return nil, nil }
+
+type specOnly struct{ spec Spec }
+
+func (o specOnly) Spec() Spec { return o.spec }
+
 func spec(name, group string, args ...ArgSpec) Spec {
 	return Spec{Name: name, Group: group, Summary: "test op", Args: args, Mutates: true}
 }
@@ -83,6 +96,26 @@ func TestRegisterRejects(t *testing.T) {
 			NewRegistry().Register(fakeOp{spec: s})
 		})
 	}
+	obs := func(mutates bool) Spec { s := spec("x", "g"); s.Mutates = mutates; return s }
+	creates := Spec{Name: "x", Group: "g", Summary: "s", Mutates: true, Creates: true,
+		Args: []ArgSpec{{Name: "file", Kind: KindString, Required: true}}}
+	for name, op := range map[string]Op{
+		"read-only mutator":   fakeOp{spec: obs(false)},
+		"mutating observer":   fakeObserver{spec: obs(true)},
+		"mutator and observe": bothOp{fakeOp{spec: obs(true)}},
+		"creator not Creator": fakeOp{spec: creates},
+		"spec only":           specOnly{spec("x", "g")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Fatal("Register did not panic")
+				}
+			}()
+			NewRegistry().Register(op)
+		})
+	}
+	t.Run("observer", func(*testing.T) { NewRegistry().Register(fakeObserver{spec: obs(false)}) })
 	t.Run("duplicate op", func(t *testing.T) {
 		r := NewRegistry()
 		r.Register(fakeOp{spec: spec("x", "g")})

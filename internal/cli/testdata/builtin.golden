@@ -79,6 +79,43 @@ exit 0
 --- stdout
 {"ok":true,"rev":10,"changed":231,"bbox":[0,0,16,16],"warnings":[],"dry_run":true}
 
+$ pxo info
+exit 0
+--- stdout
+size     16x16
+rev      9
+palette  7 colors, key width 1
+layers   main
+frames   1 (100 ms)
+regions  none
+anchors  none
+
+$ pxo info --json
+exit 0
+--- stdout
+{"ok":true,"rev":9,"size":[16,16],"key_width":1,"palette":7,"layers":[{"name":"main","visible":true,"locked":false,"opacity":255,"blend":"normal"}],"frames":[{"duration_ms":100}],"regions":{},"anchors":{}}
+
+$ pxo info hero.pxo --json
+exit 0
+--- stdout
+{"ok":true,"rev":9,"size":[16,16],"key_width":1,"palette":7,"layers":[{"name":"main","visible":true,"locked":false,"opacity":255,"blend":"normal"}],"frames":[{"duration_ms":100}],"regions":{},"anchors":{}}
+
+$ pxo info -f hero.pxo
+exit 0
+--- stdout
+size     16x16
+rev      9
+palette  7 colors, key width 1
+layers   main
+frames   1 (100 ms)
+regions  none
+anchors  none
+
+$ pxo info
+exit 0
+--- stdout
+{"ok":true,"rev":9,"size":[16,16],"key_width":1,"palette":7,"layers":[{"name":"main","visible":true,"locked":false,"opacity":255,"blend":"normal"}],"frames":[{"duration_ms":100}],"regions":{},"anchors":{}}
+
 $ pxo px 16,0 #000000 --json
 exit 2
 --- stdout
@@ -109,6 +146,32 @@ $ pxo new -f hero.pxo x.pxo --json
 exit 1
 --- stdout
 {"ok":false,"error":{"code":"usage","message":"unknown flag -f","hint":"see `pixopher new --help`"}}
+
+$ pxo info nosuch.pxo --json
+exit 4
+--- stdout
+{"ok":false,"error":{"code":"no_file","message":"nosuch.pxo does not exist","hint":"create it with `pxo new nosuch.pxo --size 32x32`"}}
+
+$ pxo info extra --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"unexpected argument \"extra\"","hint":"see `pixopher info --help`"}}
+
+$ pxo info -m note --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"unknown flag -m","hint":"see `pixopher info --help`"}}
+
+$ pxo info --dry-run
+exit 1
+--- stderr
+error[usage]: unknown flag --dry-run
+hint: see `pixopher info --help`
+
+$ pxo info --expect-rev 3 --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"unknown flag --expect-rev","hint":"see `pixopher info --help`"}}
 
 $ pxo px --help
 exit 0
@@ -158,6 +221,25 @@ Flags:
       --force       replace an existing document and remove its history
   -h, --help        help for new
       --size size   canvas size, up to 1024x1024 (default 32x32)
+
+Global Flags:
+      --json   machine-readable output (PIXOPHER_JSON=1 turns it on everywhere)
+
+$ pxo info --help
+exit 0
+--- stdout
+Show the document's size, rev, palette size, layers, frames, regions and anchors
+
+Usage:
+  pixopher info [flags]
+
+Examples:
+  pxo info
+  pxo info hero.pxo --json
+
+Flags:
+  -f, --file string   document to act on (default: $PIXOPHER_FILE, the file set by use, or the only *.pxo here)
+  -h, --help          help for info
 
 Global Flags:
       --json   machine-readable output (PIXOPHER_JSON=1 turns it on everywhere)

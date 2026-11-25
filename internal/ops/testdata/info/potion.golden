@@ -1,0 +1,9 @@
+{"rev":12,"size":[16,16],"key_width":1,"palette":6,"layers":[{"name":"body","visible":true,"locked":false,"opacity":255,"blend":"normal"},{"name":"shine","visible":true,"locked":false,"opacity":255,"blend":"normal"}],"frames":[{"duration_ms":120}],"regions":{"flask":[3,4,10,11],"neck":[6,1,4,3]},"anchors":{"cork":[8,1]}}
+---
+size     16x16
+rev      12
+palette  6 colors, key width 1
+layers   body, shine
+frames   1 (120 ms)
+regions  flask 3,4 10,11; neck 6,1 4,3
+anchors  cork 8,1
