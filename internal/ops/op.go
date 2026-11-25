@@ -28,10 +28,10 @@ type Creator interface {
 	Create(args Args) (*doc.Doc, error)
 }
 
-// Observer is an op that only looks at a document (D38): info, and later
-// show, get, stats and lint. It gets the loaded document and never a Ctx,
-// so it can't write, bump the rev or log by construction. The engine takes
-// no lock for it. Observe must not modify d.
+// Observer is an op that only looks at a document (D38): info, palette
+// list, show, get and stats, and later lint. It gets the loaded document
+// and never a Ctx, so it can't write, bump the rev or log by construction.
+// The engine takes no lock for it. Observe must not modify d.
 type Observer interface {
 	Op
 	Observe(d *doc.Doc, args Args) (Report, error)

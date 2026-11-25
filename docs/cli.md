@@ -64,8 +64,8 @@ See [palettes.md](palettes.md#color-syntax-everywhere-a-color-is-accepted-done).
 takes only `--dry-run`, `--json` and its own `--force` (D46). The others arrive with the features they control. An op can't
 define a flag with the same name or short letter as a common flag.
 
-Observation commands (`info`, and later `show`, `get`, `stats`, ...) take
-only `-f` and `--json`. They never write, so the other common flags are
+Observation commands (`info`, `palette list`, `show`, `get`, `stats`, ...)
+take only `-f`, `--json` and their own arguments. They never write, so the other common flags are
 `usage` errors there, and they read the document without waiting for the
 lock (D38, D52).
 
@@ -257,14 +257,44 @@ pxo onion <on|off> [--before 1 --after 1]          viewer setting stored in doc 
 ### Observation (non-mutating)
 
 ```
-pxo show [--grid|--ansi|--legend] [--region %r] [--layer L|--composite] [--frame n] [--rulers]   [M1]
-pxo get <x,y> [--layer L|--composite]               color at a pixel: key, name, hex   [M1]
-pxo stats                                            color counts, bbox, coverage   [M1]
+pxo show [--grid] [--rulers] [--legend] [--full]   grid of palette keys   [done]
+         [--ansi] [M3]  [--region %r] [M2]  [--layer L|--composite] [--frame n] [M4]
+pxo get <x,y>                                        key, color and name at a pixel   [done]
+         [--layer L|--composite] [M4]
+pxo stats                                            filled count, coverage, bbox, color counts   [done]
 pxo diff [<rev>|<file>] [--grid]                     what changed since rev/file   [M5]
 pxo look [-o look.png] [--zoom 8] [--since-look]     preview sheet for multimodal agents   [M5]
 pxo lint [--rule r] [--fail-on warn] [--json]        see lint.md   [M5]
 pxo schema [--json]                                  all op specs   [M8]
 pxo guide [topic]                                    agent manual   [M8]
+```
+
+`show`, `get` and `stats` read the target cel, the one drawing commands
+write, until `--layer` and `--composite` land (D55). On the document drawn
+in [agent-workflow.md](agent-workflow.md#grid-read-letting-text-only-agents-see-done),
+the `--json` forms are (each one line):
+
+```json
+{"ok":true,"origin":[0,0],"rows":["..oooooooo..","..o.r....o..","..o....w.o..","..oooooooo.."],"legend":{".":{"name":"transparent","color":"#00000000"},"o":{"name":"ink","color":"#1a1c2c"},"r":{"name":"red","color":"#b13e53"},"w":{"name":"white","color":"#f4f4f4"}}}
+{"ok":true,"at":[4,1],"key":"r","name":"red","color":"#b13e53"}
+{"ok":true,"size":[12,4],"filled":22,"coverage":0.4583,"bbox":[2,0,8,4],"colors":[{"key":"o","name":"ink","color":"#1a1c2c","count":20},{"key":"r","name":"red","color":"#b13e53","count":1},{"key":"w","name":"white","color":"#f4f4f4","count":1}]}
+```
+
+`show`'s `origin` is the canvas position of the first key of `rows`, and
+its `legend` holds every key in `rows`; `--rulers` and `--legend` only
+change the human form. `stats` counts non-transparent pixels in `filled`,
+rounds `coverage` (`filled / (w*h)`) to 4 decimals, leaves out `bbox` when
+nothing is filled, and lists the used colors in palette order. `get` prints
+`r  #b13e53  red` without `--json`, and `stats` prints:
+
+```
+size     12x4
+filled   22 of 48 px (45.83%)
+bbox     2,0 8,4
+colors   3
+  20  o  #1a1c2c  ink
+   1  r  #b13e53  red
+   1  w  #f4f4f4  white
 ```
 
 ### Batch

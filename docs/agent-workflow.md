@@ -81,29 +81,35 @@ EOF
   `grid_mismatch` and reports the offending row.
 - Symmetry applies, so an agent can write only the left half.
 
-## Grid read: letting text-only agents see
+## Grid read: letting text-only agents see [done]
 
-`pxo show --grid --rulers` prints the canvas as palette keys with
-coordinates:
+`pxo show` prints the canvas as palette keys (`--grid`, the default).
+`--rulers` adds coordinates and `--legend` names the keys shown. After
+`pxo new s.pxo --size 12x4`, `pxo rect 2,0 8,4 ink --outline` and
+`pxo px 4,1 red 7,2 white`, `pxo show --rulers --legend` prints:
 
 ```
-     0         1
-     0123456789012345
-  0  ......oooo......
-  1  ......oCco......
-  2  .....o....o.....
-legend: . transparent  o ink #1a1c2c  C cork #c28569  c cork_dark #8a5a3c
+   0         1
+   012345678901
+0  ..oooooooo..
+1  ..o.r....o..
+2  ..o....w.o..
+3  ..oooooooo..
+legend: . transparent  o ink #1a1c2c  r red #b13e53  w white #f4f4f4
 ```
 
-- `--region %head` crops the output. `--layer` or `--composite` chooses the
-  source.
-- For large canvases, the output is cropped to the content bbox automatically
-  (`--full` to disable), and canvases over 128 px wide are printed in
-  128-column tiles.
-- `--json` returns `{"origin":[x,y],"rows":[...],"legend":{...}}`.
-- `pxo get 5,3` and `pxo stats` answer targeted questions cheaply.
+- It reads the cel that drawing commands write (D55). `--region %head`
+  crops the output [M2], and `--layer` or `--composite` chooses the source
+  [M4].
+- Canvases with a side over 64 px are cropped to the content bbox
+  automatically (`--full` to disable), and output over 128 px wide is
+  printed in 128-column tiles. Rulers always show canvas coordinates, so a
+  point can be copied from cropped output into the next command.
+- `--json` returns `{"ok":true,"origin":[x,y],"rows":[...],"legend":{...}}`
+  whatever the other flags (see [cli.md](cli.md#observation-non-mutating)).
+- `pxo get 4,1` and `pxo stats` answer targeted questions cheaply.
 - `pxo diff --grid` shows only the changed cells (others as spaces), so the
-  agent can check exactly what its last batch did.
+  agent can check exactly what its last batch did [M5].
 
 ## Look: letting multimodal agents see
 

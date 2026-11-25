@@ -117,9 +117,8 @@ func (b Direct) Apply(path string, steps []Step, opt Options) (Result, error) {
 		tx      string
 	)
 	for _, st := range steps {
-		// The target is the first layer and frame until --layer and
-		// --frame land (M4).
-		ctx := ops.NewCtx(d, 0, 0)
+		layer, frame := ops.Target(d)
+		ctx := ops.NewCtx(d, layer, frame)
 		lines := make([]string, len(st.Calls))
 		for i, c := range st.Calls {
 			if err := c.Op.Apply(ctx, c.Args); err != nil {
@@ -306,7 +305,8 @@ func (b Direct) Create(path string, call ops.Call, opt Options) (Result, error) 
 		return Result{}, err
 	}
 	d.Meta.Created = opt.Now().UTC().Truncate(time.Second)
-	ctx := ops.NewCtx(d, 0, 0)
+	layer, frame := ops.Target(d)
+	ctx := ops.NewCtx(d, layer, frame)
 	if err := c.Apply(ctx, call.Args); err != nil {
 		return Result{}, err
 	}

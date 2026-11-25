@@ -1,0 +1,9 @@
+$ stats
+{"size":[12,3],"filled":8,"coverage":0.2222,"bbox":[2,1,8,1],"colors":[{"key":"oo","name":"ink","color":"#1a1c2c","count":4},{"key":"g1","name":"glass","color":"#38b76480","count":4}]}
+---
+size     12x3
+filled   8 of 36 px (22.22%)
+bbox     2,1 8,1
+colors   2
+  4  oo  #1a1c2c    ink
+  4  g1  #38b76480  glass

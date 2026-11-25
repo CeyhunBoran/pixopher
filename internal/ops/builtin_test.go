@@ -427,3 +427,116 @@ func TestPaletteListGolden(t *testing.T) {
 		})
 	}
 }
+
+// observeFixture returns the documents of TestObserveGolden that fixture
+// doesn't have: "wide" (150x80, content from 13,71 to 147,75, so show
+// crops it and prints two tiles), "wide-empty" (100x2, nothing drawn) and
+// "kw2" (12x3 with key width 2).
+func observeFixture(t *testing.T, name string) *doc.Doc {
+	t.Helper()
+	ink := doc.Entry{Key: "o", Name: "ink", Color: doc.RGBA{R: 0x1a, G: 0x1c, B: 0x2c, A: 0xff}}
+	switch name {
+	case "wide", "wide-empty":
+		w, h := 150, 80
+		if name == "wide-empty" {
+			w, h = 100, 2
+		}
+		d, err := doc.New(w, h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		d.Palette.Entries = append(d.Palette.Entries, ink)
+		if name == "wide" {
+			for x := 13; x <= 147; x += 2 {
+				d.SetPixel(0, 0, x, 70+x%6, 1)
+			}
+		}
+		return d
+	case "kw2":
+		d, err := doc.New(12, 3)
+		if err != nil {
+			t.Fatal(err)
+		}
+		d.KeyWidth, d.Palette = 2, doc.NewPalette(2)
+		ink.Key = "oo"
+		d.Palette.Entries = append(d.Palette.Entries, ink,
+			doc.Entry{Key: "g1", Name: "glass", Color: doc.RGBA{R: 0x38, G: 0xb7, B: 0x64, A: 0x80}})
+		for x := 2; x < 10; x++ {
+			d.SetPixel(0, 0, x, 1, doc.Index(1+x%2))
+		}
+		return d
+	}
+	return fixture(t, name)
+}
+
+// TestObserveGolden compares the JSON and human forms of show, get and
+// stats with golden files, and checks that observing leaves the document
+// unchanged. The fixture "linked" has pixels on a second layer and frame
+// that these ops must not read (they read the target cel, D55).
+func TestObserveGolden(t *testing.T) {
+	tests := []struct{ name, fixture, line string }{
+		{"show", "potion", "show"},
+		{"show-rulers-legend", "potion", "show --grid --rulers --legend"},
+		{"show-linked", "linked", "show --legend"},
+		{"show-blank", "blank", "show --rulers --legend"},
+		{"show-crop", "wide", "show --rulers --legend"},
+		{"show-full", "wide", "show --full --legend"},
+		{"show-empty-large", "wide-empty", "show --rulers"},
+		{"show-kw2", "kw2", "show --rulers --legend"},
+		{"get", "potion", "get 6,0"},
+		{"get-transparent", "potion", "get 0,0"},
+		{"get-kw2", "kw2", "get 3,1"},
+		{"stats", "potion", "stats"},
+		{"stats-linked", "linked", "stats"},
+		{"stats-blank", "blank", "stats"},
+		{"stats-kw2", "kw2", "stats"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := observeFixture(t, tt.fixture)
+			before := serialize(t, d)
+			f := strings.Fields(tt.line)
+			op, _ := Default.Lookup(f[0])
+			args, err := Parse(op.Spec().Args, f[1:])
+			if err != nil {
+				t.Fatal(err)
+			}
+			rep, err := op.(Observer).Observe(d, args)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var buf bytes.Buffer
+			buf.WriteString("$ " + tt.line + "\n")
+			enc := json.NewEncoder(&buf)
+			enc.SetEscapeHTML(false)
+			if err := enc.Encode(rep); err != nil {
+				t.Fatal(err)
+			}
+			buf.WriteString("---\n" + rep.Text())
+			golden.Check(t, filepath.Join("testdata", "observe", tt.name+".golden"), buf.Bytes())
+			if !bytes.Equal(serialize(t, d), before) {
+				t.Fatalf("%s changed the document", f[0])
+			}
+		})
+	}
+}
+
+// TestGetErrors checks that get fails like px for a point off the canvas.
+func TestGetErrors(t *testing.T) {
+	op, _ := Default.Lookup("get")
+	for _, tc := range []struct{ at, msg string }{
+		{"16,0", "x=16 is outside the canvas"},
+		{"0,-1", "y=-1 is outside the canvas"},
+	} {
+		args, err := Parse(op.Spec().Args, []string{tc.at})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = op.(Observer).Observe(fixture(t, "potion"), args)
+		e, ok := errors.AsType[*errs.Error](err)
+		if !ok || e.Code != errs.OutOfBounds || e.Message != tc.msg || e.Arg != "at" ||
+			e.Hint != "canvas is 16x16; valid "+tc.msg[:1]+" is 0..15" {
+			t.Errorf("get %s: %#v", tc.at, err)
+		}
+	}
+}

@@ -235,6 +235,12 @@ func TestBuiltinTranscript(t *testing.T) {
 	s.env["PIXOPHER_JSON"] = "1"
 	s.sh("info")
 	delete(s.env, "PIXOPHER_JSON")
+	s.sh("show --grid --rulers --legend")
+	s.sh("show --json")
+	s.sh("get hero.pxo 7,8 --json")
+	s.sh("get 0,0")
+	s.sh("stats")
+	s.sh("stats --json")
 
 	// Errors.
 	s.sh("px 16,0 #000000 --json")
@@ -248,10 +254,15 @@ func TestBuiltinTranscript(t *testing.T) {
 	s.sh("info -m note --json")
 	s.sh("info --dry-run")
 	s.sh("info --expect-rev 3 --json")
+	s.sh("get 99,0 --json")
+	s.sh("get --json")
+	s.sh("show --dry-run")
+	s.sh("show --rulers --rulers --json")
 
 	s.sh("px --help")
 	s.sh("new --help")
 	s.sh("info --help")
+	s.sh("show --help")
 
 	// Palettes: new starts from the default palette unless told otherwise.
 	s.sh("new pal.pxo --size 4x4 --palette nosuch --json")

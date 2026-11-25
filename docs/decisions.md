@@ -732,3 +732,47 @@ and never recolors another author's pixels.
 *Consequences*: auto entries take the first free key, so a key freed by an
 undo or `palette rm` is often reused, and redoing or undoing the step that
 had it needs that entry removed or recolored first.
+
+**D55: `show`, `get` and `stats` in M1** (2026-11-26)
+- **Source**: all three read the target cel, the one drawing ops write
+  (`ops.Target`: the first layer and frame until the active layer and
+  frame land in M4), following links. Other layers and frames are not
+  read. `--layer`, `--composite` and `--frame` come in M4, `--region` in
+  M2 and `--ansi` in M3.
+- **`show`** prints a grid of palette keys, `KeyWidth` characters per
+  pixel. `--grid` is the default and only mode for now. The flags add to
+  each other; they are not alternative modes. `--rulers` adds one header
+  line per digit of the largest x shown (ones every column; tens,
+  hundreds, ... where they change and at a tile's first column, so a crop
+  starting at x=13 still reads), and puts each row's y in front of it,
+  right-aligned, then two spaces. Ruler digits are right-aligned in
+  `KeyWidth` columns. Coordinates are always canvas coordinates.
+  `--legend` ends with `legend: ` and, in palette order, each key shown
+  with its name and color (transparent only by name), two spaces apart.
+- **Cropping and tiles**: a canvas with a side over 64 px is cropped to
+  the content bbox unless `--full` is given. An empty one is shown whole.
+  Output wider than 128 px (pixels, not characters) is printed in
+  128-column tiles separated by a blank line, each with its own rulers.
+- **`--json`** never depends on `--rulers` or `--legend`:
+  `show` gives `{"ok", "origin": [x, y], "rows": [...], "legend":
+  {"<key>": {"name", "color"}}}` with every key in `rows`; `get <x,y>`
+  gives `{"ok", "at": [x, y], "key", "name", "color"}`; `stats` gives
+  `{"ok", "size": [w, h], "filled", "coverage", "bbox": [x, y, w, h],
+  "colors": [{"key", "name", "color", "count"}]}`. `filled` counts
+  non-transparent pixels, `coverage` is `filled / (w*h)` rounded to 4
+  decimals, `bbox` is omitted when nothing is filled (as for mutating
+  output), and `colors` lists the used entries in palette order without
+  transparent. Colors are written as in the file.
+- **Human forms**: `get` prints `o  #1a1c2c  ink`, like a line of
+  `palette list`. `stats` prints labelled lines like `info` (`filled` with
+  a two-decimal percentage), then one line per color with its count.
+- `get` off the canvas is `out_of_bounds` with `arg` `at`, the same error
+  as `px`. `get` takes one point.
+*Why*: reading the cel that drawing writes lets an agent check exactly
+what it drew; a composite in palette keys can't show opacity or blending
+anyway. 64 px keeps the usual sprite sizes whole. Rulers that always use
+canvas coordinates let an agent copy a point from cropped output straight
+into the next command. A JSON shape that flags don't change is simpler to
+parse.
+*Consequences*: M4 adds `--layer` and `--composite` to all three and
+decides what `show --composite` prints for blended pixels.

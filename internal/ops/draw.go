@@ -63,7 +63,7 @@ func (pxOp) Apply(ctx *Ctx, args Args) error {
 	at, _ := args["at"].([]doc.Point)
 	colors, _ := args["color"].([]string)
 	for i, p := range at {
-		if err := inCanvas(ctx, "at", p); err != nil {
+		if err := inCanvas(ctx.Doc, "at", p); err != nil {
 			return err
 		}
 		// Resolve each color after the previous pixel is painted, so a hex
@@ -192,7 +192,7 @@ func (fillOp) Apply(ctx *Ctx, args Args) error {
 		return err
 	}
 	at := args.Point("at")
-	if err := inCanvas(ctx, "at", at); err != nil {
+	if err := inCanvas(ctx.Doc, "at", at); err != nil {
 		return err
 	}
 	b, err := newBrush(ctx, "color", args.String("color"))

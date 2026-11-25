@@ -66,8 +66,8 @@ func writable(ctx *Ctx) error {
 }
 
 // inCanvas fails with out_of_bounds, naming arg, when p is off the canvas.
-func inCanvas(ctx *Ctx, arg string, p doc.Point) error {
-	w, h := ctx.Doc.W, ctx.Doc.H
+func inCanvas(d *doc.Doc, arg string, p doc.Point) error {
+	w, h := d.W, d.H
 	switch {
 	case p.X < 0 || p.X >= w:
 		return errs.New(errs.OutOfBounds, "x=%d is outside the canvas", p.X).

@@ -1,0 +1,9 @@
+$ show --rulers --legend
+{"origin":[0,0],"rows":["........................","....oog1oog1oog1oog1....","........................"],"legend":{"..":{"name":"transparent","color":"#00000000"},"g1":{"name":"glass","color":"#38b76480"},"oo":{"name":"ink","color":"#1a1c2c"}}}
+---
+    0                   1
+    0 1 2 3 4 5 6 7 8 9 0 1
+0  ........................
+1  ....oog1oog1oog1oog1....
+2  ........................
+legend: .. transparent  oo ink #1a1c2c  g1 glass #38b76480

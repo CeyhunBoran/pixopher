@@ -21,6 +21,12 @@ type Ctx struct {
 
 type pixKey struct{ layer, frame, x, y int }
 
+// Target returns the cel that commands act on when no --layer or --frame
+// is given: drawing ops write it and show, get and stats read it (D55).
+// It is the first layer and frame until the active layer and frame land
+// (M4).
+func Target(*doc.Doc) (layer, frame int) { return 0, 0 }
+
 // NewCtx starts a step on d, targeting the cel (layer, frame).
 func NewCtx(d *doc.Doc, layer, frame int) *Ctx {
 	return &Ctx{Doc: d, Layer: layer, Frame: frame, header: d.Header(), index: map[pixKey]int{}}

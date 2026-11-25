@@ -1,0 +1,10 @@
+$ stats
+{"size":[16,16],"filled":20,"coverage":0.0781,"bbox":[4,0,8,5],"colors":[{"key":"o","name":"ink","color":"#1a1c2c","count":14},{"key":"g","name":"glass","color":"#38b764","count":3},{"key":"G","name":"glass_light","color":"#a7f070","count":3}]}
+---
+size     16x16
+filled   20 of 256 px (7.81%)
+bbox     4,0 8,5
+colors   3
+  14  o  #1a1c2c  ink
+   3  g  #38b764  glass
+   3  G  #a7f070  glass_light

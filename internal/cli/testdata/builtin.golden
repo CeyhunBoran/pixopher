@@ -116,6 +116,62 @@ exit 0
 --- stdout
 {"ok":true,"rev":9,"size":[16,16],"key_width":1,"palette":7,"layers":[{"name":"main","visible":true,"locked":false,"opacity":255,"blend":"normal"}],"frames":[{"duration_ms":100}],"regions":{},"anchors":{}}
 
+$ pxo show --grid --rulers --legend
+exit 0
+--- stdout
+    0         1
+    0123456789012345
+ 0  dddd............
+ 1  ddddddddd.......
+ 2  fffddddddddddd..
+ 3  ffffffffdddddddd
+ 4  fffffffffffffddd
+ 5  fff..bbbbbbbbfff
+ 6  fff..eeeeeeebfff
+ 7  fffbeeeeeeeebfff
+ 8  fffbeebgebeebfff
+ 9  fffbeeeeeeeebfff
+10  fffbeeeeeeeebfff
+11  fffbeeeeeeeebfff
+12  fffbbbbbbbbbbfff
+13  ffffffffffffbbbb
+14  ffffbbbbbbbbffff
+15  bbbbffffffffffff
+legend: . transparent  b auto_1a1c2c #1a1c2c  d auto_38b764 #38b764  e auto_b13e53 #b13e53  f auto_29366f #29366f  g auto_a7f070 #a7f070
+
+$ pxo show --json
+exit 0
+--- stdout
+{"ok":true,"origin":[0,0],"rows":["dddd............","ddddddddd.......","fffddddddddddd..","ffffffffdddddddd","fffffffffffffddd","fff..bbbbbbbbfff","fff..eeeeeeebfff","fffbeeeeeeeebfff","fffbeebgebeebfff","fffbeeeeeeeebfff","fffbeeeeeeeebfff","fffbeeeeeeeebfff","fffbbbbbbbbbbfff","ffffffffffffbbbb","ffffbbbbbbbbffff","bbbbffffffffffff"],"legend":{".":{"name":"transparent","color":"#00000000"},"b":{"name":"auto_1a1c2c","color":"#1a1c2c"},"d":{"name":"auto_38b764","color":"#38b764"},"e":{"name":"auto_b13e53","color":"#b13e53"},"f":{"name":"auto_29366f","color":"#29366f"},"g":{"name":"auto_a7f070","color":"#a7f070"}}}
+
+$ pxo get hero.pxo 7,8 --json
+exit 0
+--- stdout
+{"ok":true,"at":[7,8],"key":"g","name":"auto_a7f070","color":"#a7f070"}
+
+$ pxo get 0,0
+exit 0
+--- stdout
+d  #38b764  auto_38b764
+
+$ pxo stats
+exit 0
+--- stdout
+size     16x16
+filled   231 of 256 px (90.23%)
+bbox     0,0 16,16
+colors   5
+   47  b  #1a1c2c  auto_1a1c2c
+   35  d  #38b764  auto_38b764
+   44  e  #b13e53  auto_b13e53
+  104  f  #29366f  auto_29366f
+    1  g  #a7f070  auto_a7f070
+
+$ pxo stats --json
+exit 0
+--- stdout
+{"ok":true,"size":[16,16],"filled":231,"coverage":0.9023,"bbox":[0,0,16,16],"colors":[{"key":"b","name":"auto_1a1c2c","color":"#1a1c2c","count":47},{"key":"d","name":"auto_38b764","color":"#38b764","count":35},{"key":"e","name":"auto_b13e53","color":"#b13e53","count":44},{"key":"f","name":"auto_29366f","color":"#29366f","count":104},{"key":"g","name":"auto_a7f070","color":"#a7f070","count":1}]}
+
 $ pxo px 16,0 #000000 --json
 exit 2
 --- stdout
@@ -172,6 +228,27 @@ $ pxo info --expect-rev 3 --json
 exit 1
 --- stdout
 {"ok":false,"error":{"code":"usage","message":"unknown flag --expect-rev","hint":"see `pixopher info --help`"}}
+
+$ pxo get 99,0 --json
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"out_of_bounds","message":"x=99 is outside the canvas","hint":"canvas is 16x16; valid x is 0..15","arg":"at"}}
+
+$ pxo get --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"missing argument <at>","hint":"see `pixopher get --help`","arg":"at"}}
+
+$ pxo show --dry-run
+exit 1
+--- stderr
+error[usage]: unknown flag --dry-run
+hint: see `pixopher show --help`
+
+$ pxo show --rulers --rulers --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"--rulers is given twice","hint":"see `pixopher show --help`","arg":"rulers"}}
 
 $ pxo px --help
 exit 0
@@ -242,6 +319,29 @@ Examples:
 Flags:
   -f, --file string   document to act on (default: $PIXOPHER_FILE, the file set by use, or the only *.pxo here)
   -h, --help          help for info
+
+Global Flags:
+      --json   machine-readable output (PIXOPHER_JSON=1 turns it on everywhere)
+
+$ pxo show --help
+exit 0
+--- stdout
+Print the canvas as a grid of palette keys
+
+Usage:
+  pixopher show [flags]
+
+Examples:
+  pxo show --rulers --legend
+  pxo show --json
+
+Flags:
+  -f, --file string   document to act on (default: $PIXOPHER_FILE, the file set by use, or the only *.pxo here)
+      --full          don't crop canvases over 64 px to their content
+      --grid          print palette keys, one per pixel (the default)
+  -h, --help          help for show
+      --legend        end with the name and color of each key shown
+      --rulers        number the columns and rows
 
 Global Flags:
       --json   machine-readable output (PIXOPHER_JSON=1 turns it on everywhere)
