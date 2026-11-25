@@ -25,6 +25,7 @@ type Options struct {
 	Author      string           // --as; DefaultAuthor when empty
 	ExpectRev   *int             // --expect-rev; nil when not given
 	DryRun      bool             // --dry-run: compute and report, write nothing
+	Force       bool             // --force for creating ops: replace an existing document
 	LockTimeout time.Duration    // DefaultLockTimeout when zero
 	Now         func() time.Time // clock for entry timestamps; time.Now when nil
 }
@@ -51,6 +52,8 @@ type Result struct {
 type Backend interface {
 	// Apply runs steps on the document at path as one transaction.
 	Apply(path string, steps []Step, opt Options) (Result, error)
+	// Create makes the document at path with a creating op (D39).
+	Create(path string, call ops.Call, opt Options) (Result, error)
 	// Load reads the document at path.
 	Load(path string) (*doc.Doc, error)
 }
@@ -173,6 +176,82 @@ func (b Direct) Apply(path string, steps []Step, opt Options) (Result, error) {
 		return Result{}, err
 	}
 	return res, nil
+}
+
+// Create runs a creating op (D39) and writes its document at rev 0, with no
+// history entry. It fails with file_exists when path exists, unless
+// opt.Force is set; then the document is replaced and its history log is
+// removed, because the old entries don't apply to the new document (D46).
+// Changed counts the pixels that differ from an empty canvas (--bg).
+func (b Direct) Create(path string, call ops.Call, opt Options) (Result, error) {
+	if opt.LockTimeout == 0 {
+		opt.LockTimeout = DefaultLockTimeout
+	}
+	if opt.Now == nil {
+		opt.Now = time.Now
+	}
+	c, ok := call.Op.(ops.Creator)
+	if !ok {
+		return Result{}, fmt.Errorf("engine: %s is not a creating op", call.Op.Spec().Name)
+	}
+	d, err := c.Create(call.Args)
+	if err != nil {
+		return Result{}, err
+	}
+	d.Meta.Created = opt.Now().UTC().Truncate(time.Second)
+	ctx := ops.NewCtx(d, 0, 0)
+	if err := c.Apply(ctx, call.Args); err != nil {
+		return Result{}, err
+	}
+	ch := ctx.Finish()
+	res := Result{OK: true, Rev: d.Rev, Changed: len(ch.Pixels), Warnings: []string{}, DryRun: opt.DryRun}
+	if len(ch.Pixels) > 0 {
+		res.BBox = rectSlice(ch.BBox)
+	}
+	data, err := pxofile.Serialize(d)
+	if err != nil {
+		return Result{}, err
+	}
+	if !opt.DryRun {
+		// The lock keeps two writers from creating or replacing the same
+		// document at once; the existence check happens under it.
+		l, err := acquire(LockPath(path), opt.LockTimeout)
+		if err != nil {
+			return Result{}, err
+		}
+		defer func() { _ = l.release() }()
+	}
+	if err := checkCreate(path, opt.Force); err != nil {
+		return Result{}, err
+	}
+	if opt.DryRun {
+		return res, nil
+	}
+	if err := writeAtomic(path, data); err != nil {
+		return Result{}, err
+	}
+	if err := os.Remove(pxofile.LogPath(path)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return Result{}, ioErr(err)
+	}
+	return res, nil
+}
+
+// checkCreate fails with file_exists when path exists, unless force is set
+// and path is not a directory.
+func checkCreate(path string, force bool) error {
+	st, err := os.Stat(path)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return nil
+	case err != nil:
+		return ioErr(err)
+	case st.IsDir():
+		return errs.New(errs.FileExists, "%s is a directory", path).WithArg("file")
+	case !force:
+		return errs.New(errs.FileExists, "%s already exists", path).
+			WithHint("pass --force to replace it (its history is removed too)").WithArg("file")
+	}
+	return nil
 }
 
 // TxID returns the transaction id for a transaction whose first entry has

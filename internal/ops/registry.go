@@ -59,14 +59,14 @@ func (s *Spec) check() error {
 		return fmt.Errorf("ops: spec %q needs a name, group and summary", s.Name)
 	}
 	seen := map[string]bool{}
-	optional := false
+	optional, repeat := false, false
 	for i, a := range s.Args {
 		switch {
 		case a.Name == "":
 			return fmt.Errorf("ops: %s: argument %d has no name", s.Name, i)
 		case seen[a.Name]:
 			return fmt.Errorf("ops: %s: duplicate argument %q", s.Name, a.Name)
-		case a.Kind < KindString || a.Kind > KindGrid:
+		case a.Kind < KindString || a.Kind > KindArea:
 			return fmt.Errorf("ops: %s: argument %q has an unknown kind", s.Name, a.Name)
 		case a.Kind == KindEnum && len(a.Enum) == 0:
 			return fmt.Errorf("ops: %s: enum argument %q has no values", s.Name, a.Name)
@@ -100,21 +100,58 @@ func (s *Spec) check() error {
 		if !a.Required {
 			optional = true
 		}
-		if a.Repeat && i != lastPositional(s.Args) {
-			return fmt.Errorf("ops: %s: only the last positional may repeat, not %q", s.Name, a.Name)
+		if a.Repeat {
+			repeat = true
+		} else if repeat {
+			// Repeated positionals followed by fixed ones (polyline, poly)
+			// come with the batch grammar in M2 (D40).
+			return fmt.Errorf("ops: %s: fixed positional %q follows a repeated one", s.Name, a.Name)
+		}
+	}
+	return s.checkGroup()
+}
+
+// checkGroup checks the trailing repeat group (D40): its members are all
+// required or all optional, and only a one-member group may have a default.
+func (s *Spec) checkGroup() error {
+	group := s.group()
+	for _, a := range group {
+		if a.Required != group[0].Required {
+			return fmt.Errorf("ops: %s: repeated positionals must all be required or all optional", s.Name)
+		}
+		if a.Default != "" && len(group) > 1 {
+			return fmt.Errorf("ops: %s: repeated positional %q in a group cannot have a default", s.Name, a.Name)
+		}
+	}
+	if s.Creates {
+		pos := s.positionals()
+		if !s.Mutates || len(pos) == 0 || pos[0].Name != "file" || pos[0].Kind != KindString || !pos[0].Required || pos[0].Repeat {
+			return fmt.Errorf("ops: %s: a creating op mutates and takes a required string positional \"file\" first", s.Name)
 		}
 	}
 	return nil
 }
 
-func lastPositional(args []ArgSpec) int {
-	last := -1
-	for i, a := range args {
+// positionals returns the positional arguments in order.
+func (s *Spec) positionals() []ArgSpec {
+	var out []ArgSpec
+	for _, a := range s.Args {
 		if !a.Flag {
-			last = i
+			out = append(out, a)
 		}
 	}
-	return last
+	return out
+}
+
+// group returns the trailing repeat group: the positionals marked Repeat,
+// which all come after the fixed ones. It is empty when nothing repeats.
+func (s *Spec) group() []ArgSpec {
+	pos := s.positionals()
+	i := len(pos)
+	for i > 0 && pos[i-1].Repeat {
+		i--
+	}
+	return pos[i:]
 }
 
 func isDigit(c byte) bool { return c >= '0' && c <= '9' }

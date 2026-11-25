@@ -100,14 +100,19 @@ func writeDoc(t *testing.T, name string) {
 type session struct {
 	t   *testing.T
 	env map[string]string
+	ops *ops.Registry // the test registry when nil
 	out strings.Builder
 }
 
 func (s *session) run(line string, args ...string) int {
 	s.t.Helper()
 	var stdout, stderr bytes.Buffer
+	cfg := testConfig(s.env)
+	if s.ops != nil {
+		cfg.ops = s.ops
+	}
 	code := execute(BuildInfo{Version: "v0.0.0-test", Commit: "abc1234", Date: "2026-11-25T09:00:00Z"},
-		testConfig(s.env), args, &stdout, &stderr)
+		cfg, args, &stdout, &stderr)
 	fmt.Fprintf(&s.out, "$ pxo %s\nexit %d\n", line, code)
 	if stdout.Len() > 0 {
 		fmt.Fprintf(&s.out, "--- stdout\n%s", stdout.String())
@@ -191,6 +196,57 @@ func TestTranscript(t *testing.T) {
 			t.Fatal(err)
 		}
 		golden.Check(t, filepath.Join(testdata, "transcript."+f), data)
+	}
+}
+
+// TestBuiltinTranscript drives the built-in drawing ops from new onward and
+// compares the output, the document and its log with golden files.
+func TestBuiltinTranscript(t *testing.T) {
+	testdata, err := filepath.Abs("testdata")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(t.TempDir())
+	s := &session{t: t, env: map[string]string{}, ops: ops.Default}
+
+	s.sh("new hero.pxo --size 16x16 --json")
+	s.sh("new hero.pxo")
+	s.sh("new hero --json")
+	s.sh("new big.pxo --size 2000x10 --json")
+	s.sh("new other.pxo --size 4x4 --bg #1a1c2c --dry-run --json")
+	s.sh("rect 4,6 8,6 #ef7d57 --json")
+	s.sh("rect 3,5,10,8 #1a1c2c --outline --json")
+	s.sh("px 6,8 #1a1c2c 9,8 #1a1c2c 7,8 #f4f4f4 --json -m eyes")
+	s.sh("line 0,0 15,3 #38b764 --width 2 --json")
+	s.sh("line 0,15 15,13 #1a1c2c")
+	s.sh("fill 8,10 #b13e53 --json")
+	s.sh("fill 0,8 #29366f --8 --json")
+	s.sh("erase 3,5 2,2 --json")
+	s.sh("erase -5,-5")
+	s.sh("replace #f4f4f4 #a7f070 --json")
+	s.sh("clear --dry-run --json")
+
+	// Errors.
+	s.sh("px 16,0 #000000 --json")
+	s.sh("px 1,1 #000000 2,2 --json")
+	s.sh("px 1,1 nosuch --json")
+	s.sh("line 0,0 3,3 #000000 --width 0 --json")
+	s.sh("fill 0,99 #000000")
+	s.sh("new -f hero.pxo x.pxo --json")
+
+	s.sh("px --help")
+	s.sh("new --help")
+
+	golden.Check(t, filepath.Join(testdata, "builtin.golden"), []byte(s.out.String()))
+	for _, f := range []string{"hero.pxo", "hero.pxo.log"} {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		golden.Check(t, filepath.Join(testdata, "builtin."+f), data)
+	}
+	if _, err := os.Stat("other.pxo"); err == nil {
+		t.Fatal("new --dry-run wrote other.pxo")
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/CeyhunBoran/pixopher/internal/errs"
+	"github.com/CeyhunBoran/pixopher/internal/ops"
 )
 
 // CurrentFile is where `use` stores the current document, relative to the
@@ -15,7 +16,7 @@ import (
 const CurrentFile = ".pixopher/current"
 
 // Ext is the document file extension. It is matched case-sensitively.
-const Ext = ".pxo"
+const Ext = ops.Ext
 
 // ResolveFile picks the target document (docs/cli.md#file-resolution-done):
 // flag (-f or a leading .pxo positional), then env (PIXOPHER_FILE), then

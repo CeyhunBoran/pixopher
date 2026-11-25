@@ -1,0 +1,29 @@
+$ px 2,0 #111111 2,1 #111111 1,2 #111111 0,2 #111111
+$ fill 0,0 #0000ff
+changed 8  bbox 0,0 3,3  meta true
+--- document
+pixopher = 1
+size = [8, 8]
+rev = 0
+key_width = 1
+
+[palette]
+"." = ["#00000000", "transparent"]
+a = ["#111111", "auto_111111"]
+b = ["#0000ff", "auto_0000ff"]
+
+[[layers]]
+name = "main"
+
+[[frames]]
+duration_ms = 100
+
+[[cels]]
+layer = "main"
+frame = 0
+origin = [0, 0]
+grid = '''
+bba
+bba
+aa.
+'''

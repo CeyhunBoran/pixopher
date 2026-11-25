@@ -16,9 +16,10 @@ const (
 	KindRect                  // x,y,w,h
 	KindColor                 // color syntax, resolved against the document by the op
 	KindGrid                  // a letter grid block
+	KindArea                  // x,y,w,h, x,y w,h, or x,y for one pixel
 )
 
-var kindNames = [...]string{"string", "int", "bool", "enum", "point", "size", "rect", "color", "grid"}
+var kindNames = [...]string{"string", "int", "bool", "enum", "point", "size", "rect", "color", "grid", "area"}
 
 // String returns the kind's schema name, such as "point".
 func (k ArgKind) String() string {
@@ -36,7 +37,7 @@ type ArgSpec struct {
 	Flag     bool     // --name; otherwise positional
 	Short    string   // one-letter flag alias, optional
 	Required bool     // only for positionals; flags are always optional
-	Repeat   bool     // the last positional may repeat (px pairs, polygon points)
+	Repeat   bool     // trailing repeated positionals repeat together as one group (D40)
 	Default  string   // default in text form, shown in help and omitted from logged lines
 	Enum     []string // allowed values for KindEnum
 	Help     string
@@ -51,6 +52,10 @@ type Spec struct {
 	Args     []ArgSpec
 	Examples []string
 	Mutates  bool // false for observation ops such as show and get
+	// Creates marks an op that makes a new document instead of changing one
+	// (D39). Its first positional is the required file; the op implements
+	// Creator.
+	Creates bool
 }
 
 // Arg returns the spec of the argument called name.

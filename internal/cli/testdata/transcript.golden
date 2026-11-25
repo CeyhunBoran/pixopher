@@ -51,7 +51,7 @@ exit 2
 $ pxo mark 1;1 ink --json
 exit 1
 --- stdout
-{"ok":false,"error":{"code":"usage","message":"bad point \"1;1\" for at","hint":"at is x,y","arg":"at"}}
+{"ok":false,"error":{"code":"usage","message":"bad point \"1;1\" for at","hint":"at is x,y, numbers within -1048576..1048576","arg":"at"}}
 
 $ pxo mark 1,1
 exit 1

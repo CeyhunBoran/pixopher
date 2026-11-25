@@ -13,10 +13,20 @@ type Op interface {
 	Apply(ctx *Ctx, args Args) error
 }
 
+// Creator is implemented by ops whose spec has Creates (D39), such as new.
+// Create returns the new, empty document for args. The engine then runs
+// Apply on it as the creating step (new paints --bg there) and writes the
+// result at rev 0, without a history entry.
+type Creator interface {
+	Op
+	Create(args Args) (*doc.Doc, error)
+}
+
 // Args holds parsed argument values keyed by ArgSpec.Name: string for
 // KindString, KindEnum, KindColor and KindGrid, int for KindInt, bool for
-// KindBool, doc.Point for KindPoint, doc.Rect for KindRect, and Size for
-// KindSize. A repeated positional holds a slice of its element type.
+// KindBool, doc.Point for KindPoint, doc.Rect for KindRect and KindArea,
+// and Size for KindSize. A repeated positional holds a slice of its element
+// type.
 // Missing arguments are absent; the getters then return the zero value.
 type Args map[string]any
 

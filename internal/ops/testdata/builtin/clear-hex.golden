@@ -1,0 +1,33 @@
+$ clear #123456
+changed 64  bbox 0,0 8,8  meta true
+--- document
+pixopher = 1
+size = [8, 8]
+rev = 0
+key_width = 1
+
+[palette]
+"." = ["#00000000", "transparent"]
+a = ["#123456", "auto_123456"]
+
+[[layers]]
+name = "main"
+
+[[frames]]
+duration_ms = 100
+
+[[cels]]
+layer = "main"
+frame = 0
+origin = [0, 0]
+encoding = "rle"
+rows = [
+  "8a",
+  "8a",
+  "8a",
+  "8a",
+  "8a",
+  "8a",
+  "8a",
+  "8a",
+]

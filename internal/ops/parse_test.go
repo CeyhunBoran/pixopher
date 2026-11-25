@@ -88,6 +88,86 @@ func TestParse(t *testing.T) {
 	}
 }
 
+// pairSpec has a two-member repeat group after a fixed positional (D40).
+// A rect or area positional takes the next token when it is a size, so the
+// tests start the group with points that are not sizes (a 0 or a negative).
+var pairSpec = Spec{
+	Name: "pairs", Group: "test", Summary: "test op", Mutates: true,
+	Args: []ArgSpec{
+		{Name: "box", Kind: KindArea, Required: true},
+		{Name: "at", Kind: KindPoint, Required: true, Repeat: true},
+		{Name: "color", Kind: KindColor, Required: true, Repeat: true},
+		{Name: "clip", Kind: KindArea, Flag: true},
+	},
+}
+
+func TestParseGroups(t *testing.T) {
+	tests := []struct {
+		in   string
+		want Args
+		line string
+	}{
+		{
+			in:   "1,1 0,2 ink",
+			want: Args{"box": doc.Rect{X: 1, Y: 1, W: 1, H: 1}, "at": []doc.Point{{X: 0, Y: 2}}, "color": []string{"ink"}},
+			line: "pairs 1,1 0,2 ink",
+		},
+		{
+			// x,y w,h takes the size; the group follows, interleaved.
+			in: "0,0 3x2 1,1 ink -2,5 #ff8800 --clip 1,2,3,4",
+			want: Args{
+				"box": doc.Rect{W: 3, H: 2}, "at": []doc.Point{{X: 1, Y: 1}, {X: -2, Y: 5}},
+				"color": []string{"ink", "#ff8800"}, "clip": doc.Rect{X: 1, Y: 2, W: 3, H: 4},
+			},
+			line: "pairs 0,0,3,2 1,1 ink -2,5 #ff8800 --clip 1,2,3,4",
+		},
+		{
+			in:   "4,4,1,1 0,0 . --clip 7,7",
+			want: Args{"box": doc.Rect{X: 4, Y: 4, W: 1, H: 1}, "at": []doc.Point{{}}, "color": []string{"."}, "clip": doc.Rect{X: 7, Y: 7, W: 1, H: 1}},
+			line: "pairs 4,4 0,0 . --clip 7,7",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			got, err := Parse(pairSpec.Args, strings.Fields(tt.in))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("got %#v\nwant %#v", got, tt.want)
+			}
+			line := Format(pairSpec, got)
+			if line != tt.line {
+				t.Fatalf("Format = %s, want %s", line, tt.line)
+			}
+			back, err := Parse(pairSpec.Args, strings.Fields(line)[1:])
+			if err != nil || !reflect.DeepEqual(back, got) {
+				t.Fatalf("%s parsed back to %#v, %v", line, back, err)
+			}
+		})
+	}
+}
+
+func TestParseGroupErrors(t *testing.T) {
+	tests := []struct{ in, arg, msg string }{
+		{"1,1", "at", "missing argument <at>"},
+		{"1,1 0,2", "color", "missing argument <color> to complete the last group"},
+		{"1,1 0,2 ink 3,3", "color", "missing argument <color> to complete the last group"},
+		{"1,1 0,2 ink ink", "at", `bad point "ink" for at`},
+		{"1,1 0,2 ink --clip 1,1 2,2", "color", "missing argument <color> to complete the last group"},
+		{"1048577,0 0,2 ink", "box", `bad area "1048577,0" for box`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			_, err := Parse(pairSpec.Args, strings.Fields(tt.in))
+			var e *errs.Error
+			if !errors.As(err, &e) || e.Code != errs.Usage || e.Arg != tt.arg || !strings.HasPrefix(e.Message, tt.msg) {
+				t.Fatalf("got %v (%#v), want usage %q on %q", err, e, tt.msg, tt.arg)
+			}
+		})
+	}
+}
+
 func TestFormatRoundTrip(t *testing.T) {
 	// Format's output, split into tokens the way a shell would, parses back
 	// to the same Args.

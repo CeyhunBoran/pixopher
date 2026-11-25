@@ -7,18 +7,22 @@ This doc specifies the behavior of the drawing ops. The command syntax is in
 
 | Op | Behavior notes |
 | --- | --- |
-| `px` | Sets one or more pixels. Out of bounds is an error (unlike shapes). |
-| `line` | Bresenham. **Pixel-perfect mode** (default) removes the "L-corner" doubles that make 1-px lines look thick. `--raw` disables it. `--width n` stamps a square brush. |
-| `polyline` | Joined lines with shared endpoints drawn once. Pixel-perfect is applied across joints. |
-| `rect` | Filled by default. `--outline` draws a 1-px border. |
+| `px` [done] | Sets one or more pixels, each with its own color. Out of bounds is an error (unlike shapes). |
+| `line` [done] | Bresenham, and **pixel-perfect by construction**: every step moves one pixel along the major axis, so a single line never has the "L-corner" doubles that make 1-px lines look thick. `line a b` and `line b a` give the same pixels (D45). `--width n` (1..64) stamps an n x n square brush. |
+| `polyline` | Joined lines with shared endpoints drawn once. Pixel-perfect mode (default) removes the L-corners that joints can make; `--raw` keeps them. |
+| `rect` [done] | Filled by default. `--outline` draws a 1-px border. |
 | `ellipse` / `circle` | Midpoint algorithm, symmetric for both odd and even sizes. Center may be `.5` (`16.5,12`) to get even-width shapes. |
 | `poly` | Filled polygon, even-odd rule, pixel-center sampling. Vertices may be fractional. |
-| `fill` | 4-connected flood fill by default (`--8` for 8-connected). `--sample composite` decides the boundary from all visible layers but paints on the target layer. |
+| `fill` [done] | 4-connected flood fill by default (`--8` for 8-connected). `--contiguous=false` recolors every pixel of the seed's color instead. Filling with the seed's own color changes nothing. [M4] `--sample composite` decides the boundary from all visible layers but paints on the target layer. |
+| `erase` [done] | Makes a rect or one pixel transparent, clipped to the canvas. |
+| `replace` [done] | Replaces one palette entry with another on the target cel. [M2] `--region %r` limits it to a region. |
 | `gradient` | Fills a rect by walking a ramp along a direction. With `--dither`, the boundaries between steps use an ordered dither. |
 | `dither` | Ordered dither of two colors at a level, for textures and transitions. |
 | `grid` | Paints a letter grid at an offset. See [agent-workflow.md](agent-workflow.md#grid-paint). |
 
-All shapes clip to the canvas and respect `--mask`, layer lock and symmetry.
+All shapes clip to the canvas and respect `--mask`, layer lock and symmetry
+(layer lock is checked from M1; mask and symmetry arrive in M2). A raw hex
+color adds its auto entry only when a pixel on the canvas is painted (D48).
 
 ## Symmetry
 

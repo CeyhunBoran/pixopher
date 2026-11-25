@@ -1,0 +1,164 @@
+$ pxo new hero.pxo --size 16x16 --json
+exit 0
+--- stdout
+{"ok":true,"rev":0,"changed":0,"warnings":[]}
+
+$ pxo new hero.pxo
+exit 2
+--- stderr
+error[file_exists]: hero.pxo already exists
+hint: pass --force to replace it (its history is removed too)
+
+$ pxo new hero --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"document \"hero\" must end in .pxo","hint":"use a name like hero.pxo","arg":"file"}}
+
+$ pxo new big.pxo --size 2000x10 --json
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"too_large","message":"size 2000x10 is too large","hint":"the maximum canvas is 1024x1024","arg":"size"}}
+
+$ pxo new other.pxo --size 4x4 --bg #1a1c2c --dry-run --json
+exit 0
+--- stdout
+{"ok":true,"rev":0,"changed":16,"bbox":[0,0,4,4],"warnings":[],"dry_run":true}
+
+$ pxo rect 4,6 8,6 #ef7d57 --json
+exit 0
+--- stdout
+{"ok":true,"rev":1,"changed":48,"bbox":[4,6,8,6],"warnings":[]}
+
+$ pxo rect 3,5,10,8 #1a1c2c --outline --json
+exit 0
+--- stdout
+{"ok":true,"rev":2,"changed":32,"bbox":[3,5,10,8],"warnings":[]}
+
+$ pxo px 6,8 #1a1c2c 9,8 #1a1c2c 7,8 #f4f4f4 --json -m eyes
+exit 0
+--- stdout
+{"ok":true,"rev":3,"changed":3,"bbox":[6,8,4,1],"warnings":[]}
+
+$ pxo line 0,0 15,3 #38b764 --width 2 --json
+exit 0
+--- stdout
+{"ok":true,"rev":4,"changed":35,"bbox":[0,0,16,5],"warnings":[]}
+
+$ pxo line 0,15 15,13 #1a1c2c
+exit 0
+--- stdout
+ok rev 5  +16px  bbox 0,13 16,3
+
+$ pxo fill 8,10 #b13e53 --json
+exit 0
+--- stdout
+{"ok":true,"rev":6,"changed":45,"bbox":[4,6,8,6],"warnings":[]}
+
+$ pxo fill 0,8 #29366f --8 --json
+exit 0
+--- stdout
+{"ok":true,"rev":7,"changed":104,"bbox":[0,2,16,14],"warnings":[]}
+
+$ pxo erase 3,5 2,2 --json
+exit 0
+--- stdout
+{"ok":true,"rev":8,"changed":4,"bbox":[3,5,2,2],"warnings":[]}
+
+$ pxo erase -5,-5
+exit 0
+--- stdout
+ok rev 8  +0px
+
+$ pxo replace #f4f4f4 #a7f070 --json
+exit 0
+--- stdout
+{"ok":true,"rev":9,"changed":1,"bbox":[7,8,1,1],"warnings":[]}
+
+$ pxo clear --dry-run --json
+exit 0
+--- stdout
+{"ok":true,"rev":10,"changed":231,"bbox":[0,0,16,16],"warnings":[],"dry_run":true}
+
+$ pxo px 16,0 #000000 --json
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"out_of_bounds","message":"x=16 is outside the canvas","hint":"canvas is 16x16; valid x is 0..15","arg":"at"}}
+
+$ pxo px 1,1 #000000 2,2 --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"missing argument <color> to complete the last group","hint":"color repeats as a group: <at> <color> [<at> <color> ...]","arg":"color"}}
+
+$ pxo px 1,1 nosuch --json
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"unknown_color","message":"unknown color \"nosuch\"","arg":"color"}}
+
+$ pxo line 0,0 3,3 #000000 --width 0 --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"bad width 0","hint":"width is 1..64","arg":"width"}}
+
+$ pxo fill 0,99 #000000
+exit 2
+--- stderr
+error[out_of_bounds]: y=99 is outside the canvas
+hint: canvas is 16x16; valid y is 0..15
+
+$ pxo new -f hero.pxo x.pxo --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"unknown flag -f","hint":"see `pixopher new --help`"}}
+
+$ pxo px --help
+exit 0
+--- stdout
+Set pixels, each to its own color
+
+Arguments:
+  at     point x,y; pixel on the canvas
+  color  color: key, name, ramp step, #hex or .
+
+Usage:
+  pixopher px <at> <color> [<at> <color> ...] [flags]
+
+Examples:
+  pxo px 3,4 ink
+  pxo px 3,4 ink 4,4 skin 5,4 .
+
+Flags:
+      --as string        author label (default $PIXOPHER_AUTHOR or cli)
+      --dry-run          report the change without writing anything
+      --expect-rev int   fail with rev_conflict unless the document is at this rev
+  -f, --file string      document to act on (default: $PIXOPHER_FILE, the file set by use, or the only *.pxo here)
+  -h, --help             help for px
+  -m, --message string   caption for this transaction
+
+Global Flags:
+      --json   machine-readable output (PIXOPHER_JSON=1 turns it on everywhere)
+
+$ pxo new --help
+exit 0
+--- stdout
+Create a document
+
+Arguments:
+  file  text; path of the new document, ending in .pxo
+
+Usage:
+  pixopher new <file> [flags]
+
+Examples:
+  pxo new hero.pxo
+  pxo new icon.pxo --size 16x16 --bg '#1a1c2c'
+
+Flags:
+      --bg color    fill the canvas with this color (a #hex color adds an entry)
+      --dry-run     report the change without writing anything
+      --force       replace an existing document and remove its history
+  -h, --help        help for new
+      --size size   canvas size, up to 1024x1024 (default 32x32)
+
+Global Flags:
+      --json   machine-readable output (PIXOPHER_JSON=1 turns it on everywhere)
+

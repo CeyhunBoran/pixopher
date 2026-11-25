@@ -135,9 +135,10 @@ type Spec struct {
     Name     string          // "rect"
     Group    string          // "draw"
     Summary  string
-    Args     []ArgSpec       // positional + flags, typed: Point, Size, Rect, Color, Int, Enum, String, Grid
+    Args     []ArgSpec       // positional + flags, typed: Point, Size, Rect, Area, Color, Int, Enum, String, Grid
     Examples []string
     Mutates  bool            // false for show/get/lint style ops
+    Creates  bool            // new: makes the document instead of changing one (D39, D46)
 }
 
 type Op interface {

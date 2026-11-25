@@ -446,3 +446,76 @@ D36. With `--json`, errors still go to stdout as one line (D36 is
 unchanged there).
 *Why*: people can search for the code and match it against the docs, and it
 lines up with batch script errors, which also lead with a code.
+
+**D45: `line` is plain Bresenham, the same in both directions** (2026-11-25)
+An 8-connected Bresenham segment advances one pixel on its major axis at
+every step, so a single `line` never has an L-corner: it is pixel-perfect by
+construction. The endpoints are put in a fixed order (smaller x, then
+smaller y) before stepping, so `line a b` and `line b a` give the same
+pixels, and ties at half a pixel resolve toward that first end. The
+L-corner filter and `--raw` come with `polyline` in M2, where joints can
+make L-corners. `--width n` (1..64, a `usage` error otherwise) stamps an
+n x n square on every line pixel; for an even n the extra row and column
+are on the right and bottom.
+*Why*: a `--raw` flag that changes nothing would be public API (D42) with
+no meaning. Order-independent lines keep logs diffable and replays stable.
+
+**D46: `new` details** (2026-11-25)
+- **Shape**: ops with `Spec.Creates` implement `ops.Creator`. `Create(args)`
+  returns the empty document, then `Apply` runs on it as the creating step
+  (`new` paints `--bg` there). `engine.Backend.Create` writes the result at
+  rev 0 with no history entry. `changed` and `bbox` count the pixels that
+  differ from an empty canvas.
+- **Flags**: the generator gives creating ops `--json`, `--dry-run` and
+  `--force` only. `-f`, `-m`, `--as` and `--expect-rev` don't apply: the
+  file is the op's own positional, and no entry is written.
+- **Checks**: the file must end in `.pxo` (`usage`, arg `file`). Under the
+  document's lock, an existing path fails with `file_exists`. `--force`
+  replaces it and removes `<file>.log`, because the old entries belong to
+  the old document. A directory is never replaced. `--dry-run` takes no
+  lock and writes nothing, but still fails with `file_exists`.
+- **Defaults**: `--size` defaults to `32x32`. `meta.created` is the
+  creation time in UTC, to the second.
+- **Palette**: in this slice `new` has no `--palette`, and a new document
+  starts with only `.`. When the built-in palettes land, `new` without
+  `--palette` uses `default`, and the same slice adds `--palette none` for
+  an empty palette. No release happens in between, so this is not a
+  breaking default change under D42.
+
+**D47: The `area` argument kind** (2026-11-25)
+`KindArea` takes a rect (`x,y,w,h` or `x,y w,h`) or a single pixel `x,y`,
+and `%region` from M2. Its canonical text is `x,y` for a 1x1 area and
+`x,y,w,h` otherwise. As a flag it takes one token. `erase` uses it; other
+rect arguments stay strict.
+*Consequences*: like a rect, an area positional takes the next token when
+that is a size, so specs don't put a point or size positional right after
+one.
+
+**D48: Drawing op details for M1** (2026-11-25)
+- **Coordinates**: every number in a point, size, rect or area is within
+  ±1048576 (`ops.MaxCoord`), or the value is a `usage` error. Shapes may
+  reach off the canvas, but drawing stays bounded and the math can't
+  overflow.
+- **Auto entries**: a raw hex color gets its palette entry when the op
+  first paints a pixel on the canvas, so a shape that is clipped away
+  changes nothing. A hex color given twice in one `px` reuses the entry.
+  `replace` never adds an entry for `from`: a color in no entry is on no
+  pixel.
+- **`px`**: each point must be on the canvas (`out_of_bounds`, arg `at`,
+  message `x=40 is outside the canvas`); x is checked before y. Later
+  pairs overwrite earlier ones.
+- **`rect`**: filled by default; the only switch is `--outline`. A second
+  `--fill` flag would give two spellings for one call (D34). The outline is
+  the border of the whole rect, clipped, so a rect reaching off the canvas
+  has open sides.
+- **`fill`**: `--contiguous` (default true) and `--8`, which settles the
+  cli.md/drawing.md difference. `--contiguous=false` recolors every pixel of
+  the seed's palette entry on the target cel. The seed must be on the canvas.
+  Filling with the seed's own entry changes nothing. `--sample composite`
+  comes with layers in M4.
+- **`erase`**, **`clear`** and **`replace`** act on the target cel; `erase`
+  clips. `replace --region` comes with `%` references in M2.
+- **Layer lock**: drawing on a locked layer fails with `layer_locked`.
+  Symmetry is not applied until `sym` lands in M2.
+- **Undo identity**: `new` writes no history entry, so it has no undo. Its
+  tests cover creation, `file_exists` and `--force` instead.

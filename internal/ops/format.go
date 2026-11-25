@@ -19,25 +19,42 @@ import (
 func Format(spec Spec, a Args) string {
 	var pos []string
 	keep := 0 // positional tokens up to the last one that must stay
-	for _, s := range spec.Args {
-		if s.Flag {
-			continue
-		}
+	group := spec.group()
+	fixed := spec.positionals()
+	fixed = fixed[:len(fixed)-len(group)]
+	for _, s := range fixed {
 		v, ok := a[s.Name]
 		if !ok {
 			break
 		}
-		var text []string
-		if s.Repeat {
-			rv := reflect.ValueOf(v)
-			for i := range rv.Len() {
-				text = append(text, formatValue(s.Kind, rv.Index(i).Interface()))
+		text := formatValue(s.Kind, v)
+		pos = append(pos, text)
+		if s.Required || !isDefault(s, []string{text}) {
+			keep = len(pos)
+		}
+	}
+	if len(pos) == len(fixed) && len(group) > 0 {
+		// Repetitions are interleaved: px 1,1 ink 2,2 red (D40).
+		lists := make([]reflect.Value, len(group))
+		n := -1
+		for j, s := range group {
+			if v, ok := a[s.Name]; ok {
+				lists[j] = reflect.ValueOf(v)
+				if n < 0 || lists[j].Len() < n {
+					n = lists[j].Len()
+				}
+			} else {
+				n = 0
 			}
-		} else {
-			text = []string{formatValue(s.Kind, v)}
+		}
+		var text []string
+		for i := range max(n, 0) {
+			for j, s := range group {
+				text = append(text, formatValue(s.Kind, lists[j].Index(i).Interface()))
+			}
 		}
 		pos = append(pos, text...)
-		if s.Required || !isDefault(s, text) {
+		if len(text) > 0 && (group[0].Required || len(group) > 1 || !isDefault(group[0], text)) {
 			keep = len(pos)
 		}
 	}
@@ -91,6 +108,12 @@ func formatValue(k ArgKind, v any) string {
 	case KindSize:
 		s := v.(Size)
 		return strconv.Itoa(s.W) + "," + strconv.Itoa(s.H)
+	case KindArea:
+		r := v.(doc.Rect)
+		if r.W == 1 && r.H == 1 {
+			return strconv.Itoa(r.X) + "," + strconv.Itoa(r.Y)
+		}
+		return formatValue(KindRect, r)
 	case KindRect:
 		r := v.(doc.Rect)
 		return strconv.Itoa(r.X) + "," + strconv.Itoa(r.Y) + "," + strconv.Itoa(r.W) + "," + strconv.Itoa(r.H)

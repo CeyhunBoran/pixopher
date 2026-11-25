@@ -30,8 +30,10 @@ with `no_file` and says so (D35).
   sense (shapes may extend off-canvas and are clipped; `px` out of bounds is
   an error).
 - Size: `w,h` or `wxh`. Sizes and rect widths and heights are at least 1.
+  Every number in a point, size or rect is within ±1048576 (D48).
 - Rect: `x,y w,h` (two args) or `x,y,w,h` (one arg). A flag value takes the
   one-arg form.
+- Area (`erase`): a rect, or one pixel `x,y` (D47).
 - Anchor reference: `@cork`, with an offset `@cork+1,-2`.
 - Region reference: `%flask` (a rect). `%flask.center`, `%flask.tl`, `.br`
   etc. give points.
@@ -58,7 +60,8 @@ See [palettes.md](palettes.md#color-syntax-everywhere-a-color-is-accepted-done).
 | `--no-server` | don't forward to a running `serve` daemon [M7] |
 
 `-f`, `-m`, `--as`, `--expect-rev`, `--dry-run` and `--json` are
-**[done]**. The others arrive with the features they control. An op can't
+**[done]**. `new` creates its document instead of changing one, so it
+takes only `--dry-run`, `--json` and its own `--force` (D46). The others arrive with the features they control. An op can't
 define a flag with the same name or short letter as a common flag.
 
 Flags may appear anywhere on the command line, before or after the
@@ -143,12 +146,12 @@ Groups and commands. `[M#]` is the roadmap milestone that delivers the command.
 ### Document
 
 ```
-pxo new <file> --size 32x32 [--palette <name|file>] [--bg <color>] [--force]   [M1]
+pxo new <file> [--size 32x32] [--bg <color>] [--force]   [done]  (--palette <name|file|none> comes with the built-in palettes, D46)
 pxo info [--json]                     size, rev, palette size, layers, frames, regions, anchors   [M1]
 pxo use <file>                        set current file for this directory   [done]
 pxo resize <w,h> [--anchor tl|c|...]  change canvas size, keeping pixels   [M6]
 pxo crop <rect|%region|auto>          crop canvas (auto = content bbox)   [M6]
-pxo clear [color]                     clear target cel   [M1]
+pxo clear [color]                     clear target cel, or fill it with color   [done]
 pxo migrate                           upgrade old format versions   [later]
 ```
 
@@ -160,16 +163,16 @@ See [palettes.md](palettes.md). The `palette`, `ramp`, `variant` and
 ### Drawing [M1–M2]
 
 ```
-pxo px <x,y> <color> [<x,y> <color> ...]        set pixels
-pxo line <x,y> <x,y> <color> [--width 1]         Bresenham line ("pixel-perfect" mode on by default, no L-corners)
-pxo polyline <x,y> <x,y> ... <color> [--closed]
-pxo rect <x,y> <w,h> <color> [--fill|--outline]  default --fill
+pxo px <x,y> <color> [<x,y> <color> ...]        set pixels   [done]
+pxo line <x,y> <x,y> <color> [--width 1]         Bresenham line, no L-corners by construction (D45)   [done]
+pxo polyline <x,y> <x,y> ... <color> [--closed] [--raw]
+pxo rect <x,y> <w,h> <color> [--outline]        filled unless --outline   [done]
 pxo ellipse <cx,cy> <rx,ry> <color> [--fill|--outline]
 pxo circle <cx,cy> <r> <color> [--fill|--outline]
 pxo poly <x,y> <x,y> <x,y> ... <color>            filled polygon (even-odd)
-pxo fill <x,y> <color> [--contiguous=true] [--sample layer|composite]
-pxo erase <rect|%region|x,y>                     to transparent
-pxo replace <from> <to> [--region %r]
+pxo fill <x,y> <color> [--contiguous=true] [--8]   [done]  ([M4] --sample layer|composite)
+pxo erase <rect|%region|x,y>                     to transparent   [done]  ([M2] %region)
+pxo replace <from> <to>                          [done]  ([M2] --region %r)
 pxo grid <x,y> [--legend "a=skin b=ink"] <<'EOF' ... EOF    paint a letter grid (see agent-workflow.md)
 pxo stamp <part> <x,y|@anchor> [--flip h|v] [--rot 90|180|270] [--align tl|c|bc]
 pxo gradient <rect> <ramp> [--dir down|right|...] [--dither bayer4|checker|none]

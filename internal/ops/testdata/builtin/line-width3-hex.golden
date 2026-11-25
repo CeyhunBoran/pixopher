@@ -1,0 +1,30 @@
+$ line 1,1 6,4 #00ff00 --width 3
+changed 30  bbox 0,0 8,6  meta true
+--- document
+pixopher = 1
+size = [8, 8]
+rev = 0
+key_width = 1
+
+[palette]
+"." = ["#00000000", "transparent"]
+a = ["#00ff00", "auto_00ff00"]
+
+[[layers]]
+name = "main"
+
+[[frames]]
+duration_ms = 100
+
+[[cels]]
+layer = "main"
+frame = 0
+origin = [0, 0]
+grid = '''
+aaa.....
+aaaaa...
+aaaaaaa.
+.aaaaaaa
+...aaaaa
+.....aaa
+'''

@@ -28,7 +28,14 @@ var (
 		{Name: "message", Short: "m", Kind: ops.KindString, Flag: true, Help: "caption for this transaction"},
 		{Name: "as", Kind: ops.KindString, Flag: true, Help: "author label (default $PIXOPHER_AUTHOR or cli)"},
 		{Name: "expect-rev", Kind: ops.KindInt, Flag: true, Help: "fail with rev_conflict unless the document is at this rev"},
-		{Name: "dry-run", Kind: ops.KindBool, Flag: true, Help: "report the change without writing anything"},
+		dryRunFlag,
+	}
+	dryRunFlag = ops.ArgSpec{Name: "dry-run", Kind: ops.KindBool, Flag: true, Help: "report the change without writing anything"}
+	// Creating ops (D39) take no -f: the file is their own positional.
+	// They write no history entry, so -m, --as and --expect-rev don't apply.
+	createFlags = []ops.ArgSpec{
+		dryRunFlag,
+		{Name: "force", Kind: ops.KindBool, Flag: true, Help: "replace an existing document and remove its history"},
 	}
 )
 
@@ -44,6 +51,14 @@ func addOpCommand(root *cobra.Command, op ops.Op, st *state) {
 		panic(fmt.Sprintf("cli: %s: observation ops are not supported yet", spec.Name))
 	}
 	common := append([]ops.ArgSpec{fileFlag, jsonFlag}, mutateFlags...)
+	helpFlags := append([]ops.ArgSpec{fileFlag}, mutateFlags...)
+	if spec.Creates {
+		if _, ok := op.(ops.Creator); !ok {
+			panic(fmt.Sprintf("cli: %s: a creating op must implement ops.Creator", spec.Name))
+		}
+		common = append([]ops.ArgSpec{jsonFlag}, createFlags...)
+		helpFlags = createFlags
+	}
 	reserved := map[string]bool{"help": true, "h": true}
 	for _, c := range common {
 		reserved[c.Name] = true
@@ -76,7 +91,7 @@ func addOpCommand(root *cobra.Command, op ops.Op, st *state) {
 			return st.runOp(cmd, op, common, tokens)
 		},
 	}
-	for _, a := range append(slices.Clone(spec.Args), append([]ops.ArgSpec{fileFlag}, mutateFlags...)...) {
+	for _, a := range append(slices.Clone(spec.Args), helpFlags...) {
 		if a.Flag {
 			addHelpFlag(cmd.Flags(), a)
 		}
@@ -123,6 +138,9 @@ func (st *state) runOp(cmd *cobra.Command, op ops.Op, common []ops.ArgSpec, toke
 	}
 	st.json = &jsonOut
 
+	if spec.Creates {
+		return st.runCreate(cmd, op, c, pos, flags)
+	}
 	file := c.String("file")
 	if len(pos) > 0 && strings.HasSuffix(pos[0], engine.Ext) {
 		if file != "" {
@@ -148,6 +166,25 @@ func (st *state) runOp(cmd *cobra.Command, op ops.Op, common []ops.ArgSpec, toke
 	}
 	call := ops.Call{Op: op, Args: args, Line: ops.Format(spec, args)}
 	res, err := st.cfg.backend.Apply(path, []engine.Step{{Msg: c.String("message"), Calls: []ops.Call{call}}}, opt)
+	return st.report(cmd, res, err)
+}
+
+// runCreate runs a creating op such as new (D39): the document is the op's
+// own file positional, so there is no file resolution.
+func (st *state) runCreate(cmd *cobra.Command, op ops.Op, c ops.Args, pos []string, flags map[string]string) error {
+	spec := op.Spec()
+	args, err := ops.Build(spec.Args, pos, flags)
+	if err != nil {
+		return err
+	}
+	opt := engine.Options{DryRun: c.Bool("dry-run"), Force: c.Bool("force"), Now: st.cfg.now}
+	call := ops.Call{Op: op, Args: args, Line: ops.Format(spec, args)}
+	res, err := st.cfg.backend.Create(args.String("file"), call, opt)
+	return st.report(cmd, res, err)
+}
+
+// report prints a transaction result, or returns its error.
+func (st *state) report(cmd *cobra.Command, res engine.Result, err error) error {
 	if err != nil {
 		if _, ok := errors.AsType[*errs.Error](err); !ok {
 			// Every engine error is structured; anything else comes from
@@ -156,7 +193,7 @@ func (st *state) runOp(cmd *cobra.Command, op ops.Op, common []ops.ArgSpec, toke
 		}
 		return err
 	}
-	if jsonOut {
+	if *st.json {
 		return writeJSON(cmd.OutOrStdout(), res)
 	}
 	return printResult(cmd.OutOrStdout(), cmd.ErrOrStderr(), res)
@@ -187,18 +224,27 @@ func printResult(out, errOut io.Writer, res engine.Result) error {
 // appends [flags].
 func useLine(name string, spec ops.Spec) string {
 	parts := []string{name}
+	var group []string
+	required := false
 	for _, a := range spec.Args {
-		if a.Flag {
-			continue
+		switch {
+		case a.Flag:
+		case a.Repeat:
+			group = append(group, "<"+a.Name+">")
+			required = a.Required
+		case a.Required:
+			parts = append(parts, "<"+a.Name+">")
+		default:
+			parts = append(parts, "["+a.Name+"]")
 		}
-		p := "<" + a.Name + ">"
-		if !a.Required {
-			p = "[" + a.Name + "]"
+	}
+	if len(group) > 0 {
+		// A repeat group (D40): `<at> <color> [<at> <color> ...]`.
+		one := strings.Join(group, " ")
+		if required {
+			parts = append(parts, one)
 		}
-		if a.Repeat {
-			p += "..."
-		}
-		parts = append(parts, p)
+		parts = append(parts, "["+one+" ...]")
 	}
 	return strings.Join(parts, " ")
 }
@@ -212,6 +258,7 @@ var kindHelp = map[ops.ArgKind]string{
 	ops.KindColor:  "color: key, name, ramp step, #hex or .",
 	ops.KindEnum:   "one of",
 	ops.KindGrid:   "letter grid",
+	ops.KindArea:   "rect x,y,w,h or x,y w,h, or one pixel x,y",
 }
 
 // longHelp is the summary followed by one line per positional argument.

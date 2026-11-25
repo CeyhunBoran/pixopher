@@ -478,3 +478,97 @@ func BenchmarkApply64(b *testing.B) {
 		}
 	}
 }
+
+// newCall builds a call of the built-in new op.
+func newCall(t testing.TB, tokens ...string) ops.Call {
+	t.Helper()
+	op, ok := ops.Default.Lookup("new")
+	if !ok {
+		t.Fatal("no new op")
+	}
+	args, err := ops.Parse(op.Spec().Args, tokens)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ops.Call{Op: op, Args: args, Line: ops.Format(op.Spec(), args)}
+}
+
+func TestCreate(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "hero.pxo")
+	var b Direct
+
+	// A dry run reports and writes nothing, not even the lock file.
+	res, err := b.Create(path, newCall(t, path, "--size", "4x2", "--bg", "#102030"), Options{Now: clock, DryRun: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := asJSON(t, res); got != `{"ok":true,"rev":0,"changed":8,"bbox":[0,0,4,2],"warnings":[],"dry_run":true}` {
+		t.Fatalf("dry run: %s", got)
+	}
+	if exists(path) || exists(LockPath(path)) {
+		t.Fatal("dry run wrote a file")
+	}
+
+	res, err = b.Create(path, newCall(t, path, "--size", "4x2", "--bg", "#102030"), opts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := asJSON(t, res); got != `{"ok":true,"rev":0,"changed":8,"bbox":[0,0,4,2],"warnings":[]}` {
+		t.Fatalf("create: %s", got)
+	}
+	want := "pixopher = 1\nsize = [4, 2]\nrev = 0\nkey_width = 1\n\n[meta]\ncreated = 2026-11-24T09:00:00Z\n\n" +
+		"[palette]\n\".\" = [\"#00000000\", \"transparent\"]\na = [\"#102030\", \"auto_102030\"]\n\n" +
+		"[[layers]]\nname = \"main\"\n\n[[frames]]\nduration_ms = 100\n\n" +
+		"[[cels]]\nlayer = \"main\"\nframe = 0\norigin = [0, 0]\ngrid = '''\naaaa\naaaa\n'''\n"
+	if got := string(read(t, path)); got != want {
+		t.Fatalf("document:\n%s\nwant:\n%s", got, want)
+	}
+	if exists(pxofile.LogPath(path)) {
+		t.Fatal("new wrote a history log")
+	}
+
+	// It exists now, also for a dry run.
+	for _, dry := range []bool{false, true} {
+		o := opts()
+		o.DryRun = dry
+		_, err := b.Create(path, newCall(t, path), o)
+		if e, ok := errors.AsType[*errs.Error](err); !ok || e.Code != errs.FileExists || e.Arg != "file" {
+			t.Fatalf("dry %t: %v, want file_exists", dry, err)
+		}
+	}
+
+	// --force replaces the document and removes its history, which belongs
+	// to the old one.
+	if _, err := b.Apply(path, []Step{step(t, "", "paint #ffffff 0,0")}, opts()); err != nil {
+		t.Fatal(err)
+	}
+	if !exists(pxofile.LogPath(path)) {
+		t.Fatal("no log after a paint")
+	}
+	o := opts()
+	o.Force = true
+	if _, err := b.Create(path, newCall(t, path, "--size", "2x2"), o); err != nil {
+		t.Fatal(err)
+	}
+	d, err := b.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.W != 2 || d.Rev != 0 || len(d.Cels) != 0 || exists(pxofile.LogPath(path)) {
+		t.Fatalf("after --force: %dx%d rev %d, %d cels, log %t", d.W, d.H, d.Rev, len(d.Cels), exists(pxofile.LogPath(path)))
+	}
+
+	// A directory is never replaced, and op errors write nothing.
+	o.Force = true
+	if _, err := b.Create(dir, newCall(t, "x.pxo"), o); errs.CodeOf(err) != errs.FileExists {
+		t.Fatalf("directory: %v", err)
+	}
+	other := filepath.Join(dir, "other.pxo")
+	if _, err := b.Create(other, newCall(t, other, "--bg", "nosuch"), opts()); errs.CodeOf(err) != errs.UnknownColor || exists(other) {
+		t.Fatalf("bad --bg: %v, exists %t", err, exists(other))
+	}
+	if _, err := b.Create(filepath.Join(dir, "missing", "a.pxo"), newCall(t, "a.pxo"), opts()); errs.CodeOf(err) != errs.IO {
+		t.Fatalf("missing directory: %v", err)
+	}
+}

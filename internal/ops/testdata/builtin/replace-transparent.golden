@@ -1,0 +1,80 @@
+$ replace . #202020
+changed 236  bbox 0,0 16,16  meta true
+--- document
+pixopher = 1
+size = [16, 16]
+rev = 12
+key_width = 1
+
+[meta]
+title = "potion"
+created = 2026-11-23T18:00:00Z
+
+[palette]
+"." = ["#00000000", "transparent"]
+o = ["#1a1c2c", "ink"]
+g = ["#38b764", "glass"]
+G = ["#a7f070", "glass_light"]
+r = ["#b13e53", "liquid_dark"]
+R = ["#ef7d57", "liquid"]
+w = ["#f4f4f4", "shine"]
+a = ["#202020", "auto_202020"]
+
+[ramps]
+glass = ["o", "g", "G"]
+liquid = ["r", "R", "w"]
+
+[symmetry]
+mode = "x"
+
+[[layers]]
+name = "body"
+
+[[layers]]
+name = "shine"
+
+[[frames]]
+duration_ms = 120
+
+[[tags]]
+name = "idle"
+from = 0
+to = 0
+
+[regions]
+flask = [3, 4, 10, 11]
+neck = [6, 1, 4, 3]
+
+[anchors]
+cork = [8, 1]
+
+[parts.bubble]
+grid = '''
+.w.
+w.w
+.w.
+'''
+
+[[cels]]
+layer = "body"
+frame = 0
+origin = [0, 0]
+encoding = "rle"
+rows = [
+  "6a 4o 6a",
+  "6a 1o 1G 1g 1o 6a",
+  "6a 4o 6a",
+  "5a 1o 4a 1o 5a",
+  "4a 1o 1a 1g 2G 1g 1a 1o 4a",
+  "16a",
+  "16a",
+  "16a",
+  "16a",
+  "16a",
+  "16a",
+  "16a",
+  "16a",
+  "16a",
+  "16a",
+  "16a",
+]

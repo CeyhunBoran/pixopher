@@ -36,8 +36,9 @@ already includes layers and frames, but only one of each is exposed.
 - [ ] `undo`, `redo`, `log`
 - [x] Op registry core types: spec, args, recording ctx, change, registry
 - [x] Cobra generation from specs for mutating ops (arg parsing and canonical lines, common flags, `--json` and the error envelope); observation ops come with `info`
-- [ ] Ops: `new`, `info`, `use`, `clear`, `px`, `line` (pixel-perfect), `rect`, `fill`, `erase`, `replace`
-- [ ] `palette list/add/set/rename/rm`, `ramp add/rm`; built-ins `default` and `sweetie16`
+- [x] Ops: `new`, `use`, `clear`, `px`, `line` (pixel-perfect), `rect`, `fill`, `erase`, `replace`
+- [ ] Op: `info` (the first observation op, D38)
+- [ ] `palette list/add/set/rename/rm`, `ramp add/rm`; built-ins `default` and `sweetie16`; `new --palette`, with `default` when it is not given and `none` for an empty palette (D46)
 - [ ] Observation: `show --grid --rulers --legend`, `get`, `stats`
 - [ ] `export` PNG with `--scale`, indexed when ≤256 colors
 - [ ] `--json` output, error codes and exit codes from [cli.md](cli.md)
