@@ -86,7 +86,7 @@ func (dc *decoder) decodeRLE(where string, rows []string) (pixGrid, error) {
 	for y, row := range rows {
 		rw := where + " row " + strconv.Itoa(y)
 		n := 0
-		for _, tok := range strings.Fields(row) {
+		for tok := range strings.FieldsSeq(row) {
 			if len(tok) <= dc.kw {
 				return pixGrid{}, invalid("%s: rle token %q needs a count and a key", rw, tok)
 			}

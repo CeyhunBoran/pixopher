@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -185,8 +186,8 @@ func TestUndoFromLog(t *testing.T) {
 		t.Fatal("only the step that added colors should carry a meta delta")
 	}
 	d := drawn.Clone()
-	for i := len(changes) - 1; i >= 0; i-- {
-		ops.Revert(d, changes[i])
+	for _, change := range slices.Backward(changes) {
+		ops.Revert(d, change)
 	}
 	d.Rev = orig.Rev
 	if a, b := serialize(t, d), serialize(t, orig); !bytes.Equal(a, b) {

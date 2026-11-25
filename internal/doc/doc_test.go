@@ -49,7 +49,7 @@ func TestNewSizeLimits(t *testing.T) {
 
 func TestValidKey(t *testing.T) {
 	n := 0
-	for c := 0; c < 128; c++ {
+	for c := range 128 {
 		if ValidKey(string(rune(c)), 1) {
 			n++
 		}

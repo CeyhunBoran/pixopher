@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -168,10 +169,8 @@ func parseValue(a ArgSpec, tokens []string) (any, int, error) {
 		}
 		return t, 1, nil
 	case KindEnum:
-		for _, e := range a.Enum {
-			if t == e {
-				return t, 1, nil
-			}
+		if slices.Contains(a.Enum, t) {
+			return t, 1, nil
 		}
 		return nil, 0, errs.New(errs.Usage, "bad %s %q", a.Name, t).
 			WithHint("use one of: %s", strings.Join(a.Enum, ", ")).WithArg(a.Name)

@@ -76,8 +76,7 @@ func (d *Doc) ApplyPixels(deltas []PixelDelta, inverse bool) {
 		}
 		return
 	}
-	for i := len(deltas) - 1; i >= 0; i-- {
-		p := deltas[i]
+	for _, p := range slices.Backward(deltas) {
 		d.SetPixel(p.Layer, p.Frame, p.X, p.Y, p.Before)
 	}
 }
