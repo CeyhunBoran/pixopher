@@ -93,7 +93,8 @@ goes to stderr:
 {"ok": false, "error": {"code": "out_of_bounds", "message": "x=40 is outside the canvas", "hint": "canvas is 32x32; valid x is 0..31", "arg": "at"}}
 ```
 
-`hint` and `arg` are omitted when empty. Without `--json`, stderr gets
+`hint` and `arg` are omitted when empty. Some codes add a `details` object
+(`undo_conflict`, see [History](#history-m1-m7)). Without `--json`, stderr gets
 `error[<code>]: <message>` and, when there is one, `hint: <hint>`
 (D44). A `usage` error
 without its own hint gets ``see `pixopher <command> --help` ``.
@@ -247,10 +248,40 @@ Details are in [agent-workflow.md](agent-workflow.md#batch-scripts).
 ### History [M1, M7]
 
 ```
-pxo undo [n] [--step] [--any] [--force] | redo [n] [--step]   own last n transactions (a whole `run`), or n steps with --step; --any: anyone's   [M1]
-pxo log [--limit 20] [--json]                    [M1]
+pxo undo [n] [--step] [--any] [--force] | redo [n] [--step] [--force]   own last n transactions (a whole `run`), or n steps with --step; --any: anyone's   [done]
+pxo log [--limit 20] [-f file] [--json]          0 shows all   [done]
 pxo checkpoint <name> | restore <name|rev>       [M7]
 pxo replay [--from rev] [--speed 2x] [--tui]     [M7]
+```
+
+`undo` and `redo` also take the common flags of mutating commands (`-f`,
+`-m`, `--as`, `--expect-rev`, `--dry-run`, `--json`). They read
+the document's effective history (D49): entries above the document's rev,
+or abandoned after a rollback, are ignored with a warning. Each reverted or
+re-applied entry is checked against the document first, and a pixel or
+header that changed since is an `undo_conflict` unless `--force` (D20).
+Nothing to undo or redo is `no_history`. `redo` brings back what the same
+author undid, until that author draws again. The result adds the entries
+acted on, in order:
+
+```json
+{"ok": true, "rev": 15, "changed": 24, "bbox": [6, 1, 4, 3], "undone": [{"rev": 13, "tx": "t_0012"}, {"rev": 12, "tx": "t_0012"}], "warnings": []}
+```
+
+(`"redone"` for `redo`); the human line is
+`ok rev 15  +24px  bbox 6,1 4,3  undid t_0012`. An `undo_conflict` from
+later changes has `details` in its error (D50):
+
+```json
+{"ok": false, "error": {"code": "undo_conflict", "message": "undoing rev 2 (t_0002) would overwrite later changes to 1 pixel", "hint": "they were changed by t_0003; pass --force to undo anyway", "details": {"target": 2, "count": 1, "pixels": [[1, 1]], "txs": ["t_0003"]}}}
+```
+
+`log` shows the effective history newest first, one line per entry
+(`rev 3  t_0003  cli  2026-11-25T09:00:00Z  px 2,2 ink  -m 'the eyes'`).
+With `--json`:
+
+```json
+{"ok": true, "rev": 4, "entries": [{"rev": 4, "tx": "t_0004", "ts": "2026-11-25T09:00:00Z", "author": "cli", "kind": "undo", "target": 3, "ops": [], "bbox": [0, 7, 8, 1]}, {"rev": 3, "tx": "t_0003", "ts": "2026-11-25T09:00:00Z", "author": "bot", "ops": ["line 0,7 7,7 #38b764"], "bbox": [0, 7, 8, 1], "undone": true}], "warnings": []}
 ```
 
 ### Live and integration

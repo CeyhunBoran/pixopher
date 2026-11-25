@@ -1,8 +1,8 @@
 # The `.pxo` file format
 
 Status: the document format is **[done]** (M1). The history log is
-**[wip]**: entries are written and read, and `undo`, `redo`, `log` and
-checkpoints are still planned.
+**[wip]**: entries are written and read, and `undo`, `redo` and `log`
+work on them; checkpoints and `log --compact` are still planned.
 
 A `.pxo` file is a **TOML document** whose pixel data is stored as **letter
 grids** inside multi-line literal strings. It is meant to be readable, editable
@@ -234,13 +234,28 @@ the file is append-only.
   header (no cels, `rev = 0`) when the palette, ramps or another non-pixel
   part changed. The exact encoding is D31 in [decisions.md](decisions.md).
 - `msg` is omitted when the step has no caption, and `bbox` when no pixel
-  changed. A step that changes nothing writes no entry (D32).
+  changed. A normal step that changes nothing writes no entry (D32);
+  undo and redo entries are always written (D50).
 - Every 100 revisions a **checkpoint** entry embeds a full snapshot of the
   document, so replay and `restore` don't need to walk from rev 0.
 - Named checkpoints are created with `pixopher checkpoint "before arms"`.
-- `undo` and `redo` append entries too (`{"kind":"undo","target":12}`). The
-  log is never rewritten, so the drawing process can always be replayed,
-  mistakes included.
+- `undo` and `redo` append entries too **[done]**: one per reverted or
+  re-applied entry, with `"kind": "undo"` or `"redo"` after `author`,
+  `"target"` (the rev of the entry acted on), `"ops": []`, and their own
+  deltas in `undo`. Normal entries have no `kind`. The log is never
+  rewritten, so the drawing process can always be replayed, mistakes
+  included (D50):
+
+  ```json
+  {"rev":13,"tx":"t_0013","ts":"2026-11-23T18:05:00Z","author":"agent","kind":"undo","target":12,"ops":[],"bbox":[6,1,4,3],"undo":{"pixels":"<base64 packed deltas>","meta":[]}}
+  ```
+
+- **Effective history** **[done]**: readers follow the chain that leads to
+  the document's rev. Reading backward from the end, an entry counts only
+  when its rev is below the last one counted, starting below the
+  document's rev + 1. Entries above the document's rev and entries
+  abandoned after a rollback are ignored, and undo checks every entry
+  against the document before applying it (D49).
 - `pixopher log --compact` rewrites the log, keeping checkpoints and the
   messages.
 

@@ -1,0 +1,161 @@
+$ pxo new hero.pxo --size 8x8 --json
+exit 0
+--- stdout
+{"ok":true,"rev":0,"changed":0,"warnings":[]}
+
+$ pxo undo --json
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"no_history","message":"nothing by cli to undo"}}
+
+$ pxo rect 1,1 4,4 #ef7d57 --json
+exit 0
+--- stdout
+{"ok":true,"rev":1,"changed":16,"bbox":[1,1,4,4],"warnings":[]}
+
+$ pxo px 2,2 #1a1c2c 3,2 #1a1c2c --json -m 'the eyes'
+exit 0
+--- stdout
+{"ok":true,"rev":2,"changed":2,"bbox":[2,2,2,1],"warnings":[]}
+
+$ pxo line 0,7 7,7 #38b764 --as bot --json
+exit 0
+--- stdout
+{"ok":true,"rev":3,"changed":8,"bbox":[0,7,8,1],"warnings":[]}
+
+$ pxo fill 6,0 #29366f --json
+exit 0
+--- stdout
+{"ok":true,"rev":4,"changed":40,"bbox":[0,0,8,7],"warnings":[]}
+
+$ pxo log
+exit 0
+--- stdout
+rev 4  t_0004  cli  2026-11-25T09:00:00Z  fill 6,0 #29366f
+rev 3  t_0003  bot  2026-11-25T09:00:00Z  line 0,7 7,7 #38b764
+rev 2  t_0002  cli  2026-11-25T09:00:00Z  px 2,2 #1a1c2c 3,2 #1a1c2c  -m 'the eyes'
+rev 1  t_0001  cli  2026-11-25T09:00:00Z  rect 1,1,4,4 #ef7d57
+
+$ pxo log --limit 2 --json
+exit 0
+--- stdout
+{"ok":true,"rev":4,"entries":[{"rev":4,"tx":"t_0004","ts":"2026-11-25T09:00:00Z","author":"cli","ops":["fill 6,0 #29366f"],"bbox":[0,0,8,7]},{"rev":3,"tx":"t_0003","ts":"2026-11-25T09:00:00Z","author":"bot","ops":["line 0,7 7,7 #38b764"],"bbox":[0,7,8,1]}],"warnings":[]}
+
+$ pxo undo --json
+exit 0
+--- stdout
+{"ok":true,"rev":5,"changed":40,"bbox":[0,0,8,7],"undone":[{"rev":4,"tx":"t_0004"}],"warnings":[]}
+
+$ pxo undo 0
+exit 1
+--- stderr
+error[usage]: n must be at least 1, not 0
+hint: see `pixopher undo --help`
+
+$ pxo undo 2 --dry-run
+exit 3
+--- stderr
+error[undo_conflict]: undoing rev 2 (t_0002) would overwrite later changes to the document header (palette, ramps, ...)
+hint: they were changed by t_0003; pass --force to undo anyway
+
+$ pxo undo 2
+exit 3
+--- stderr
+error[undo_conflict]: undoing rev 2 (t_0002) would overwrite later changes to the document header (palette, ramps, ...)
+hint: they were changed by t_0003; pass --force to undo anyway
+
+$ pxo undo --json
+exit 3
+--- stdout
+{"ok":false,"error":{"code":"undo_conflict","message":"undoing rev 2 (t_0002) would overwrite later changes to the document header (palette, ramps, ...)","hint":"they were changed by t_0003; pass --force to undo anyway","details":{"target":2,"count":0,"pixels":[],"meta":true,"txs":["t_0003"]}}}
+
+$ pxo undo --any --as bot --json
+exit 0
+--- stdout
+{"ok":true,"rev":6,"changed":8,"bbox":[0,7,8,1],"undone":[{"rev":3,"tx":"t_0003"}],"warnings":[]}
+
+$ pxo log
+exit 0
+--- stdout
+rev 6  t_0006  bot  2026-11-25T09:00:00Z  undo rev 3
+rev 5  t_0005  cli  2026-11-25T09:00:00Z  undo rev 4
+rev 4  t_0004  cli  2026-11-25T09:00:00Z  fill 6,0 #29366f  (undone)
+rev 3  t_0003  bot  2026-11-25T09:00:00Z  line 0,7 7,7 #38b764  (undone)
+rev 2  t_0002  cli  2026-11-25T09:00:00Z  px 2,2 #1a1c2c 3,2 #1a1c2c  -m 'the eyes'
+rev 1  t_0001  cli  2026-11-25T09:00:00Z  rect 1,1,4,4 #ef7d57
+
+$ pxo redo --as bot
+exit 0
+--- stdout
+ok rev 7  +8px  bbox 0,7 8,1  redid t_0003
+
+$ pxo redo 3 --json
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"no_history","message":"only 1 transaction by cli to redo, not 3","hint":"redo only brings back what cli undid, until cli draws again"}}
+
+$ pxo redo --json
+exit 0
+--- stdout
+{"ok":true,"rev":8,"changed":40,"bbox":[0,0,8,7],"redone":[{"rev":4,"tx":"t_0004"}],"warnings":[]}
+
+$ pxo undo --any --step --expect-rev 1
+exit 3
+--- stderr
+error[rev_conflict]: hero.pxo is at rev 8, not 1
+hint: another write happened; look at the document again, then retry with --expect-rev 8
+
+$ pxo undo 5 --any
+exit 2
+--- stderr
+error[no_history]: only 4 transactions to undo, not 5
+
+$ pxo log --limit -1
+exit 1
+--- stderr
+error[usage]: limit must be 0 or more, not -1
+hint: see `pixopher log --help`
+
+$ pxo undo --help
+exit 0
+--- stdout
+Undo your last transactions
+
+Arguments:
+  n  integer; how many transactions (entries with --step) (default 1)
+
+Usage:
+  pixopher undo [n] [flags]
+
+Examples:
+  pxo undo
+  pxo undo 3
+  pxo undo --step
+  pxo undo --any --as reviewer
+
+Flags:
+      --any              undo the latest transactions by anyone, not only yours
+      --as string        author label (default $PIXOPHER_AUTHOR or cli)
+      --dry-run          report the change without writing anything
+      --expect-rev int   fail with rev_conflict unless the document is at this rev
+  -f, --file string      document to act on (default: $PIXOPHER_FILE, the file set by use, or the only *.pxo here)
+      --force            undo even when later changes touched the same pixels or header
+  -h, --help             help for undo
+  -m, --message string   caption for this transaction
+      --step             count history entries (steps of a run) instead of transactions
+
+Global Flags:
+      --json   machine-readable output (PIXOPHER_JSON=1 turns it on everywhere)
+
+$ pxo undo 4 --any --json
+exit 0
+--- stdout
+{"ok":true,"rev":12,"changed":64,"bbox":[0,0,8,8],"undone":[{"rev":4,"tx":"t_0004"},{"rev":3,"tx":"t_0003"},{"rev":2,"tx":"t_0002"},{"rev":1,"tx":"t_0001"}],"warnings":[]}
+
+$ pxo log --limit 3
+exit 0
+--- stdout
+rev 12  t_0009  cli  2026-11-25T09:00:00Z  undo rev 1
+rev 11  t_0009  cli  2026-11-25T09:00:00Z  undo rev 2
+rev 10  t_0009  cli  2026-11-25T09:00:00Z  undo rev 3
+

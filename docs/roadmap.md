@@ -33,7 +33,7 @@ already includes layers and frames, but only one of each is exposed.
 - [x] Engine direct mode: lock, atomic write, rev, `--expect-rev`, `--dry-run` (engine options; the flags come with cobra generation)
 - [x] File resolution (`-f`, `PIXOPHER_FILE`, `use`, the only `*.pxo`)
 - [x] History log JSONL: entries with tx ids and undo deltas, written and read
-- [ ] `undo`, `redo`, `log`
+- [x] `undo`, `redo`, `log` (D49, D50)
 - [x] Op registry core types: spec, args, recording ctx, change, registry
 - [x] Cobra generation from specs for mutating ops (arg parsing and canonical lines, common flags, `--json` and the error envelope); observation ops come with `info`
 - [x] Ops: `new`, `use`, `clear`, `px`, `line` (pixel-perfect), `rect`, `fill`, `erase`, `replace`

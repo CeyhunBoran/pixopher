@@ -59,6 +59,7 @@ func newRoot(info BuildInfo, st *state) *cobra.Command {
 		return &errs.Error{Code: errs.Usage, Message: err.Error()}
 	})
 	root.AddCommand(newVersionCmd(info, st), newUseCmd(st))
+	root.AddCommand(newHistoryCmds(st)...)
 	for _, op := range st.cfg.ops.All() {
 		addOpCommand(root, op, st)
 	}

@@ -519,3 +519,79 @@ one.
   Symmetry is not applied until `sym` lands in M2.
 - **Undo identity**: `new` writes no history entry, so it has no undo. Its
   tests cover creation, `file_exists` and `--force` instead.
+
+**D49: The effective history, and checking it against the document** (2026-11-25)
+Settles the "log and document out of step" open question.
+- **Chain**: `undo`, `redo` and `log` read the log backward from its end
+  and keep an entry only when its rev is below the last one kept, starting
+  below the document's rev + 1. Entries above the document's rev (a
+  `git checkout` of the document alone) and entries abandoned when a
+  rollback made revs repeat are skipped. Revs in the chain strictly grow,
+  so a tx id names one transaction there, and a transaction is a run of
+  consecutive chain entries with the same id. Abandoned entries stay in the
+  file (the log is never rewritten).
+- **Warnings**: when the newest log entries are above the document's rev,
+  and when the chain ends below the document's rev (a crash between the
+  document write and the log append, or a deleted log). Both go to
+  `warnings` in the output of `undo`, `redo` and `log`.
+- **Checks before applying**, per entry, on the current document:
+  1. Its deltas must fit: the canvas width they were encoded for, layers,
+     frames and rows. Otherwise `undo_conflict`, and `--force` can't
+     override it.
+  2. Every pixel must still hold the entry's after value (its before value
+     for a redo), and a meta change needs the current header to equal the
+     after snapshot (D31). Otherwise `undo_conflict`, unless `--force`. This
+     is how D20's "changed the same pixels" is checked, so changes made
+     outside the log (a hand edit, a lost log append) are caught too.
+  3. The result must validate. A later transaction that paints with a
+     palette entry the undone one added would be left pointing past the
+     palette, so this is `undo_conflict` too, and `--force` can't override it.
+*Why*: comparing with the document catches every way the two can drift,
+while trusting tx ids and revs alone would apply deltas to the wrong
+pixels. Ignoring entries above the rev, instead of failing, keeps a
+rolled-back document usable, and the next write moves the chain on.
+*Consequences*: a hand edit that changes a pixel and changes it back is not
+a conflict, because nothing would be lost.
+
+**D50: `undo`, `redo` and `log` details** (2026-11-25)
+- **Not ops**: like `use` (D35), they are hand-written engine commands,
+  because they work on the history log and not through `Op.Apply`. MCP
+  exposes them as the separate `pixopher_history` tool. They parse their
+  arguments with `ops.Split` and `ops.Build` like generated commands (D37),
+  and `undo` and `redo` take the common mutating flags (`-f`, `-m`, `--as`,
+  `--expect-rev`, `--dry-run`, `--json`).
+- **Entries**: an undo or redo writes one entry per reverted or re-applied
+  entry, as one transaction, newest first for an undo. Each bumps the rev
+  and has `"kind": "undo"` or `"redo"`, `"target"` (the rev of the normal
+  entry it acts on), `"ops": []` and its own deltas, so replay never needs
+  to look anything up. They are written even when a forced step changes no
+  pixel, because they change what can be undone next.
+- **Undone state**: a normal entry is undone or not, and undo and redo
+  entries flip that. Undo and redo entries are never undo targets.
+  `undo` takes the latest transaction (by the author, or anyone's with
+  `--any`) that has entries not undone yet, and reverts those entries.
+  With `--step` it takes one entry.
+- **Redo**: each author has a redo stack of the entries they undid. A new
+  normal entry by that author clears it; other authors' work doesn't.
+  `redo` re-applies the top entry and the entries of the same original
+  transaction under it, so `undo 3` then `redo 3` round-trips. `redo
+  --force` exists for the same conflicts as `undo --force`.
+- **Counts**: `n` is at least 1 (`usage`, arg `n`). If fewer than n
+  transactions (or entries with `--step`) are available, nothing is written
+  and the command fails with `no_history` (exit 2).
+- **Output**: the usual result (D36) adds `"undone"` or `"redone"`, a list
+  of `{"rev", "tx"}` in the order applied. The human line appends
+  `  undid t_0012` (`redid`), listing distinct tx ids.
+- **Conflict details**: `errs.Error` gets an optional `details` object.
+  For `undo_conflict` caused by later changes it is `{"target", "count",
+  "pixels", "meta"?, "txs"}`: the rev being undone, how many pixels
+  changed, the first 64 of them as `[x, y]` in row-major order, whether
+  the header changed, and the later transactions that changed them, oldest
+  first. An undone entry and the undo that reverted it are not blamed.
+- **`log`**: `--limit n` (default 20, `0` for all, negative is `usage`)
+  shows the chain newest first. `--json` is `{"ok", "rev", "entries",
+  "warnings"}`, where each entry is the log entry without `undo`, plus
+  `"undone": true` for a normal entry that is currently undone. The human
+  form is one line per entry, `rev 3  t_0003  cli  <ts>  px 2,2 ink  -m
+  'the eyes'`, with `undo rev 2` for undo entries, `  (undone)` for undone
+  ones, and `no history` when there is none.

@@ -10,6 +10,7 @@ import (
 
 	"github.com/CeyhunBoran/pixopher/internal/doc"
 	"github.com/CeyhunBoran/pixopher/internal/errs"
+	"github.com/CeyhunBoran/pixopher/internal/history"
 	"github.com/CeyhunBoran/pixopher/internal/ops"
 	"github.com/CeyhunBoran/pixopher/internal/pxofile"
 )
@@ -27,6 +28,7 @@ type Options struct {
 	ExpectRev   *int             // --expect-rev; nil when not given
 	DryRun      bool             // --dry-run: compute and report, write nothing
 	Force       bool             // --force for creating ops: replace an existing document
+	Message     string           // -m for Undo; Apply's steps carry their own captions
 	LockTimeout time.Duration    // DefaultLockTimeout when zero
 	Now         func() time.Time // clock for entry timestamps; time.Now when nil
 }
@@ -44,8 +46,16 @@ type Result struct {
 	Rev      int      `json:"rev"`               // rev after the transaction (would-be rev for a dry run)
 	Changed  int      `json:"changed"`           // pixels that differ from before the transaction
 	BBox     []int    `json:"bbox,omitempty"`    // [x, y, w, h] of the changed pixels
+	Undone   []Target `json:"undone,omitempty"`  // undo: the entries reverted, in order
+	Redone   []Target `json:"redone,omitempty"`  // redo: the entries applied again, in order
 	Warnings []string `json:"warnings"`          // never null
 	DryRun   bool     `json:"dry_run,omitempty"` // true when nothing was written
+}
+
+// Target names a history entry that undo reverted or redo applied again.
+type Target struct {
+	Rev int    `json:"rev"`
+	Tx  string `json:"tx"`
 }
 
 // Backend runs transactions on documents: in process (Direct) or, from M7,
@@ -55,8 +65,13 @@ type Backend interface {
 	Apply(path string, steps []Step, opt Options) (Result, error)
 	// Create makes the document at path with a creating op (D39).
 	Create(path string, call ops.Call, opt Options) (Result, error)
+	// Undo reverts (or, with req.Redo, re-applies) history entries of the
+	// document at path as one transaction.
+	Undo(path string, req history.Request, opt Options) (Result, error)
 	// Load reads the document at path.
 	Load(path string) (*doc.Doc, error)
+	// History reads the document at path and its effective history (D49).
+	History(path string) (*doc.Doc, history.Chain, error)
 }
 
 // Direct is the in-process backend (docs/architecture.md#direct-mode-default-no-daemon).
@@ -89,35 +104,11 @@ func noFile(path string) error {
 // writes no file. If any call fails, nothing is written. A dry run takes no
 // lock and writes nothing, but reports the same result and errors.
 func (b Direct) Apply(path string, steps []Step, opt Options) (Result, error) {
-	if opt.Author == "" {
-		opt.Author = DefaultAuthor
-	}
-	if opt.LockTimeout == 0 {
-		opt.LockTimeout = DefaultLockTimeout
-	}
-	if opt.Now == nil {
-		opt.Now = time.Now
-	}
-	if !opt.DryRun {
-		// Don't leave a stray lock file next to a document that isn't there.
-		if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) {
-			return Result{}, noFile(path)
-		}
-		l, err := acquire(LockPath(path), opt.LockTimeout)
-		if err != nil {
-			return Result{}, err
-		}
-		defer func() { _ = l.release() }()
-	}
-	d, err := b.Load(path)
+	d, release, err := b.begin(path, &opt)
 	if err != nil {
 		return Result{}, err
 	}
-	if opt.ExpectRev != nil && *opt.ExpectRev != d.Rev {
-		return Result{}, errs.New(errs.RevConflict, "%s is at rev %d, not %d", path, d.Rev, *opt.ExpectRev).
-			WithHint("another write happened; look at the document again, then retry with --expect-rev %d", d.Rev).
-			WithArg("expect-rev")
-	}
+	defer release()
 
 	ts := opt.Now().UTC().Format(time.RFC3339)
 	var (
@@ -160,23 +151,138 @@ func (b Direct) Apply(path string, steps []Step, opt Options) (Result, error) {
 	if len(entries) == 0 {
 		return res, nil
 	}
-	data, err := pxofile.Serialize(d)
+	return res, commit(path, d, entries, opt.DryRun)
+}
+
+// Undo runs an undo or redo as one transaction under the lock: it reads the
+// log, builds the document's chain (D49), and writes one entry per reverted
+// or re-applied entry, each bumping the rev. Entries are written even when a
+// forced step changes nothing, because they change what can be undone next.
+// opt.Author is the author of the new entries and, unless req.Author is
+// set, whose history is undone.
+func (b Direct) Undo(path string, req history.Request, opt Options) (Result, error) {
+	d, release, err := b.begin(path, &opt)
 	if err != nil {
 		return Result{}, err
 	}
-	if opt.DryRun {
-		return res, nil
+	defer release()
+	log, err := pxofile.ReadLog(pxofile.LogPath(path))
+	if err != nil {
+		return Result{}, err
+	}
+	chain := history.Build(log, d.Rev)
+	if req.Author == "" {
+		req.Author = opt.Author
+	}
+	steps, err := history.Run(d, chain, req)
+	if err != nil {
+		return Result{}, err
+	}
+	kind := pxofile.KindUndo
+	if req.Redo {
+		kind = pxofile.KindRedo
+	}
+	ts := opt.Now().UTC().Format(time.RFC3339)
+	tx := TxID(d.Rev + 1)
+	var (
+		changes []ops.Change
+		entries []pxofile.Entry
+		targets []Target
+	)
+	for _, st := range steps {
+		d.Rev++
+		e, err := entry(d, st.Change, nil, opt.Message, tx, ts, opt.Author)
+		if err != nil {
+			return Result{}, err
+		}
+		e.Kind, e.Target = kind, st.Target.Rev
+		changes = append(changes, st.Change)
+		entries = append(entries, e)
+		targets = append(targets, Target{Rev: st.Target.Rev, Tx: st.Target.Tx})
+	}
+	net := ops.NetPixels(changes)
+	res := Result{OK: true, Rev: d.Rev, Changed: len(net), Warnings: chain.Warnings, DryRun: opt.DryRun}
+	if res.Warnings == nil {
+		res.Warnings = []string{}
+	}
+	if len(net) > 0 {
+		res.BBox = rectSlice(ops.BBox(net))
+	}
+	if req.Redo {
+		res.Redone = targets
+	} else {
+		res.Undone = targets
+	}
+	return res, commit(path, d, entries, opt.DryRun)
+}
+
+// History reads the document at path and its effective history. Like Load,
+// it takes no lock.
+func (b Direct) History(path string) (*doc.Doc, history.Chain, error) {
+	d, err := b.Load(path)
+	if err != nil {
+		return nil, history.Chain{}, err
+	}
+	log, err := pxofile.ReadLog(pxofile.LogPath(path))
+	if err != nil {
+		return nil, history.Chain{}, err
+	}
+	return d, history.Build(log, d.Rev), nil
+}
+
+// begin fills in opt's defaults, takes the lock (not for a dry run), loads
+// the document and checks --expect-rev. The caller must call release.
+func (b Direct) begin(path string, opt *Options) (d *doc.Doc, release func(), err error) {
+	if opt.Author == "" {
+		opt.Author = DefaultAuthor
+	}
+	if opt.LockTimeout == 0 {
+		opt.LockTimeout = DefaultLockTimeout
+	}
+	if opt.Now == nil {
+		opt.Now = time.Now
+	}
+	release = func() {}
+	if !opt.DryRun {
+		// Don't leave a stray lock file next to a document that isn't there.
+		if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) {
+			return nil, nil, noFile(path)
+		}
+		l, err := acquire(LockPath(path), opt.LockTimeout)
+		if err != nil {
+			return nil, nil, err
+		}
+		release = func() { _ = l.release() }
+	}
+	if d, err = b.Load(path); err != nil {
+		release()
+		return nil, nil, err
+	}
+	if opt.ExpectRev != nil && *opt.ExpectRev != d.Rev {
+		release()
+		return nil, nil, errs.New(errs.RevConflict, "%s is at rev %d, not %d", path, d.Rev, *opt.ExpectRev).
+			WithHint("another write happened; look at the document again, then retry with --expect-rev %d", d.Rev).
+			WithArg("expect-rev")
+	}
+	return d, release, nil
+}
+
+// commit writes d and appends entries to its log, unless dryRun is set.
+func commit(path string, d *doc.Doc, entries []pxofile.Entry, dryRun bool) error {
+	data, err := pxofile.Serialize(d)
+	if err != nil {
+		return err
+	}
+	if dryRun {
+		return nil
 	}
 	// The document is the source of truth, so it is written first. If the
 	// process dies before the log append, the document is intact and only
 	// those steps lack undo history.
 	if err := writeAtomic(path, data); err != nil {
-		return Result{}, err
+		return err
 	}
-	if err := pxofile.AppendLog(pxofile.LogPath(path), entries); err != nil {
-		return Result{}, err
-	}
-	return res, nil
+	return pxofile.AppendLog(pxofile.LogPath(path), entries)
 }
 
 // Create runs a creating op (D39) and writes its document at rev 0, with no

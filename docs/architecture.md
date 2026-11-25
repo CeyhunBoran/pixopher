@@ -124,7 +124,8 @@ testdata/     golden .pxo files and expected PNG/SVG outputs
 ```
 
 Dependency direction (no cycles): `doc` ← `color`, `raster` ← `fx` ← `ops` ←
-`script` ← `engine` ← (`cli`, `server`, `mcp`, `tui`). `render`, `export`,
+`script`, `history` ← `engine` ← (`cli`, `server`, `mcp`, `tui`). `history`
+uses `ops` and `pxofile` (for the log entries). `render`, `export`,
 `lint` and `importer` depend on `doc` and `color` only. `pxofile` depends on
 `doc` and `color`. Every package may import `errs`.
 

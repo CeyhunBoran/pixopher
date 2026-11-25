@@ -115,48 +115,84 @@ func groupCommand(parent *cobra.Command, name string) *cobra.Command {
 }
 
 func (st *state) runOp(cmd *cobra.Command, op ops.Op, common []ops.ArgSpec, tokens []string) error {
+	if wantsHelp(tokens) {
+		return cmd.Help()
+	}
+	spec := op.Spec()
+	pos, flags, c, err := st.split(spec.Args, common, tokens)
+	if err != nil {
+		return err
+	}
+	if spec.Creates {
+		return st.runCreate(cmd, op, c, pos, flags)
+	}
+	args, path, err := st.resolve(spec.Args, c, pos, flags)
+	if err != nil {
+		return err
+	}
+	call := ops.Call{Op: op, Args: args, Line: ops.Format(spec, args)}
+	res, err := st.cfg.backend.Apply(path, []engine.Step{{Msg: c.String("message"), Calls: []ops.Call{call}}}, st.options(c))
+	return st.report(cmd, res, err)
+}
+
+// wantsHelp reports whether -h or --help comes before any `--`.
+func wantsHelp(tokens []string) bool {
 	for _, t := range tokens {
 		if t == "--" {
 			break
 		}
 		if t == "-h" || t == "--help" {
-			return cmd.Help()
+			return true
 		}
 	}
-	spec := op.Spec()
-	pos, flags, err := ops.Split(append(slices.Clone(common), spec.Args...), tokens)
+	return false
+}
+
+// split parses tokens against a command's own arguments plus the common
+// flags. It returns the positionals and flags still in text form and the
+// parsed common flags, and settles whether output is JSON.
+func (st *state) split(own, common []ops.ArgSpec, tokens []string) ([]string, map[string]string, ops.Args, error) {
+	pos, flags, err := ops.Split(append(slices.Clone(common), own...), tokens)
 	if err != nil {
-		return err
+		return nil, nil, nil, err
 	}
 	c, err := ops.Build(common, nil, flags)
 	if err != nil {
-		return err
+		return nil, nil, nil, err
 	}
 	jsonOut := st.envJSON()
 	if c.Has("json") {
 		jsonOut = c.Bool("json")
 	}
 	st.json = &jsonOut
+	return pos, flags, c, nil
+}
 
-	if spec.Creates {
-		return st.runCreate(cmd, op, c, pos, flags)
-	}
+// resolve builds a command's own arguments and resolves its document: -f,
+// a leading positional ending in .pxo, or the usual fallbacks.
+func (st *state) resolve(own []ops.ArgSpec, c ops.Args, pos []string, flags map[string]string) (ops.Args, string, error) {
 	file := c.String("file")
 	if len(pos) > 0 && strings.HasSuffix(pos[0], engine.Ext) {
 		if file != "" {
-			return errs.New(errs.Usage, "the document is given twice: -f %s and %s", file, pos[0]).WithArg("file")
+			return nil, "", errs.New(errs.Usage, "the document is given twice: -f %s and %s", file, pos[0]).WithArg("file")
 		}
 		file, pos = pos[0], pos[1:]
 	}
-	args, err := ops.Build(spec.Args, pos, flags)
+	args, err := ops.Build(own, pos, flags)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 	path, err := engine.ResolveFile(file, st.cfg.getenv("PIXOPHER_FILE"))
 	if err != nil {
-		return err
+		return nil, "", err
 	}
-	opt := engine.Options{Author: c.String("as"), DryRun: c.Bool("dry-run"), Now: st.cfg.now}
+	return args, path, nil
+}
+
+// options turns the parsed common flags of a mutating command into engine
+// options.
+func (st *state) options(c ops.Args) engine.Options {
+	opt := engine.Options{Author: c.String("as"), DryRun: c.Bool("dry-run"), Message: c.String("message"), Now: st.cfg.now}
 	if opt.Author == "" {
 		opt.Author = st.cfg.getenv("PIXOPHER_AUTHOR")
 	}
@@ -164,9 +200,7 @@ func (st *state) runOp(cmd *cobra.Command, op ops.Op, common []ops.ArgSpec, toke
 		n := c.Int("expect-rev")
 		opt.ExpectRev = &n
 	}
-	call := ops.Call{Op: op, Args: args, Line: ops.Format(spec, args)}
-	res, err := st.cfg.backend.Apply(path, []engine.Step{{Msg: c.String("message"), Calls: []ops.Call{call}}}, opt)
-	return st.report(cmd, res, err)
+	return opt
 }
 
 // runCreate runs a creating op such as new (D39): the document is the op's
@@ -200,12 +234,19 @@ func (st *state) report(cmd *cobra.Command, res engine.Result, err error) error 
 }
 
 // printResult writes the human form of a transaction result:
-// `ok rev 13  +24px  bbox 6,1 4,3`, with `  (dry run)` appended for a dry
-// run and warnings on stderr.
+// `ok rev 13  +24px  bbox 6,1 4,3`, with `  undid t_0012` for an undo
+// (`redid` for a redo), `  (dry run)` appended for a dry run, and warnings
+// on stderr.
 func printResult(out, errOut io.Writer, res engine.Result) error {
 	line := fmt.Sprintf("ok rev %d  +%dpx", res.Rev, res.Changed)
 	if len(res.BBox) == 4 {
 		line += fmt.Sprintf("  bbox %d,%d %d,%d", res.BBox[0], res.BBox[1], res.BBox[2], res.BBox[3])
+	}
+	if len(res.Undone) > 0 {
+		line += "  undid " + txList(res.Undone)
+	}
+	if len(res.Redone) > 0 {
+		line += "  redid " + txList(res.Redone)
 	}
 	if res.DryRun {
 		line += "  (dry run)"
@@ -217,6 +258,17 @@ func printResult(out, errOut io.Writer, res engine.Result) error {
 		return &errs.Error{Code: errs.IO, Message: err.Error()}
 	}
 	return nil
+}
+
+// txList is the distinct tx ids of ts, in order, comma-separated.
+func txList(ts []engine.Target) string {
+	var ids []string
+	for _, t := range ts {
+		if !slices.Contains(ids, t.Tx) {
+			ids = append(ids, t.Tx)
+		}
+	}
+	return strings.Join(ids, ", ")
 }
 
 // useLine is the usage line: `rect <at> <size> <color> [--fill]`-style,

@@ -24,11 +24,19 @@ type Entry struct {
 	Tx     string   `json:"tx"`
 	TS     string   `json:"ts"` // UTC, RFC 3339, whole seconds
 	Author string   `json:"author"`
+	Kind   string   `json:"kind,omitempty"`   // "" for a normal step, KindUndo or KindRedo
+	Target int      `json:"target,omitempty"` // for undo and redo: the rev of the entry reverted or re-applied
 	Msg    string   `json:"msg,omitempty"`
 	Ops    []string `json:"ops"`
 	BBox   []int    `json:"bbox,omitempty"` // [x, y, w, h] of the changed pixels
 	Undo   Undo     `json:"undo"`
 }
+
+// Entry kinds. A normal step has no kind.
+const (
+	KindUndo = "undo" // reverts the entry whose rev is Target
+	KindRedo = "redo" // applies the entry whose rev is Target again
+)
 
 // Undo holds an entry's deltas in both directions, so it can be undone and
 // redone without snapshots.
@@ -130,16 +138,24 @@ func EncodePixels(deltas []doc.PixelDelta, width int) string {
 
 // DecodePixels unpacks EncodePixels output.
 func DecodePixels(s string) ([]doc.PixelDelta, error) {
+	out, _, err := DecodePixelsWidth(s)
+	return out, err
+}
+
+// DecodePixelsWidth unpacks EncodePixels output and also returns the canvas
+// width the deltas were encoded for, or 0 when there are none. Every cel of
+// one entry must have the same width.
+func DecodePixelsWidth(s string) ([]doc.PixelDelta, int, error) {
 	if s == "" {
-		return nil, nil
+		return nil, 0, nil
 	}
 	data, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
-		return nil, invalid("history entry has invalid pixel data: %v", err)
+		return nil, 0, invalid("history entry has invalid pixel data: %v", err)
 	}
 	bad := func(what string) error { return invalid("history entry has invalid pixel data: %s", what) }
 	if len(data) == 0 || data[0] != pixelsVersion {
-		return nil, bad("unknown encoding version")
+		return nil, 0, bad("unknown encoding version")
 	}
 	r := bytes.NewReader(data[1:])
 	const maxPos = doc.MaxSize * doc.MaxSize
@@ -154,28 +170,33 @@ func DecodePixels(s string) ([]doc.PixelDelta, error) {
 		return int(v), nil
 	}
 	var out []doc.PixelDelta
+	canvas := 0
 	for r.Len() > 0 {
 		var g [4]int
 		for i, lim := range []uint64{1 << 16, 1 << 16, doc.MaxSize, maxPos} {
 			if g[i], err = next(lim); err != nil {
-				return nil, err
+				return nil, 0, err
 			}
 		}
 		layer, frame, width, runs := g[0], g[1], g[2], g[3]
 		if width == 0 {
-			return nil, bad("zero width")
+			return nil, 0, bad("zero width")
 		}
+		if canvas != 0 && width != canvas {
+			return nil, 0, bad("cels have different widths")
+		}
+		canvas = width
 		pos := 0
 		for range runs {
 			var f [4]int
 			for i, lim := range []uint64{maxPos, maxPos, 1<<16 - 1, 1<<16 - 1} {
 				if f[i], err = next(lim); err != nil {
-					return nil, err
+					return nil, 0, err
 				}
 			}
 			pos += f[0]
 			if f[1] == 0 || pos+f[1] > maxPos {
-				return nil, bad("run out of range")
+				return nil, 0, bad("run out of range")
 			}
 			for range f[1] {
 				out = append(out, doc.PixelDelta{
@@ -186,7 +207,7 @@ func DecodePixels(s string) ([]doc.PixelDelta, error) {
 			}
 		}
 	}
-	return out, nil
+	return out, canvas, nil
 }
 
 // MarshalEntries returns entries as JSON Lines. HTML characters in messages
