@@ -684,3 +684,51 @@ or an `Observer`.
 Failing on in-use entries keeps a removal from silently breaking ramps or
 variants. A default palette with ramps lets agents shade from the first
 command.
+
+**D54: Palette-aware undo, and forced restores that reuse a key** (2026-11-26)
+Supersedes D31's "the whole header is restored" consequence and the header
+part of D49's check 2. Settles the "forced header restores and reused
+palette indices" open question.
+- **Entries by key**: undo and redo match palette entries by key, not by
+  index. A step with a meta delta checks only the entries it changed
+  (added, removed, renamed or recolored between its two snapshots): each
+  must still be what the step left. Another author's new entry is not a
+  conflict. The rest of the header (everything but `[palette]`, compared as
+  canonical text, where ramps and parts name entries by key) is checked
+  and restored only when the step changed it, so undoing `ramp add` isn't
+  blocked by a new color either.
+- **Merge**: the step's entries are merged into the current palette: an
+  entry it removes is dropped, one it changed takes its old value, and one
+  it brings back is inserted after the closest entry before it in its
+  snapshot that the palette still has, so undo then redo round-trips. Every
+  cel, part and ramp is renumbered to match, and those pixels are written
+  to the undo or redo entry's own deltas.
+- **Index spaces**: a step's pixel deltas are read against the palette they
+  were written with: its own snapshots for a meta step, otherwise the
+  before snapshot of the next chain entry with a meta delta, or the
+  palette before this undo or redo when there is none. So a renumbering doesn't turn
+  later pixel-only entries into conflicts or wrong colors.
+- **Not even `--force`** (`undo_conflict`): bringing back an entry whose
+  key or name another entry has taken since (its pixels would silently
+  change color), removing an entry that pixels, ramps or parts outside the
+  step still use, and restoring pixels, ramps or parts to an entry that has
+  been removed since. The key clash is checked before the forceable checks,
+  so the first error is the one that matters.
+- **Fallback**: when the key width differs between the snapshots and the
+  document, or the step reorders entries, the whole header is compared and
+  restored as before (D31). No command changes the key width or reorders
+  entries yet.
+- **Output**: `details` keeps its shape (D50); `meta` is true when any
+  part of the header conflicts. The message names the entries (`would
+  overwrite later changes to palette entry b`), and blame only lists
+  transactions that changed those entries, or the rest of the header when
+  that conflicts. Pixels renumbered by the merge count in `changed` and
+  `bbox`, as with `palette rm` (D53), even where their color stays the
+  same.
+*Why*: with several authors, adding a color is the most common header
+change, and it touches nothing anyone else made. Refusing a reused key
+instead of merging under a fresh key keeps every entry's history simple
+and never recolors another author's pixels.
+*Consequences*: auto entries take the first free key, so a key freed by an
+undo or `palette rm` is often reused, and redoing or undoing the step that
+had it needs that entry removed or recolored first.

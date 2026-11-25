@@ -39,7 +39,7 @@ already includes layers and frames, but only one of each is exposed.
 - [x] Ops: `new`, `use`, `clear`, `px`, `line` (pixel-perfect), `rect`, `fill`, `erase`, `replace`
 - [x] Op: `info` (the first observation op, D38, D52)
 - [x] `palette list/add/set/rename/rm`, `ramp add/rm`; built-in `default`; `new --palette`, with `default` when it is not given and `none` for an empty palette (D46)
-- [ ] Palette-aware undo: compare palette entries one by one instead of the whole header (D31, D49), so another author's new color doesn't block undo, and settle forced restores that reuse a palette index ([open-questions.md](open-questions.md))
+- [x] Palette-aware undo: compare palette entries one by one instead of the whole header (D31, D49), so another author's new color doesn't block undo, and settle forced restores that reuse a palette index (D54, [decisions.md](decisions.md))
 - [ ] Observation: `show --grid --rulers --legend`, `get`, `stats`
 - [ ] `export` PNG with `--scale`, indexed when ≤256 colors
 - [ ] `--json` output, error codes and exit codes from [cli.md](cli.md)

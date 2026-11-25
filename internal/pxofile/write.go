@@ -25,6 +25,31 @@ func Serialize(d *doc.Doc) ([]byte, error) {
 	w.header()
 	w.meta()
 	w.palette()
+	w.rest()
+	w.cels()
+	return w.buf.Bytes(), nil
+}
+
+// HeaderRest returns the canonical text of d's header (see doc.Doc.Header)
+// without the [palette] section. Ramps and parts name palette entries by
+// key, so the text doesn't change when entries move to other indices. Undo
+// compares it to tell whether anything but the palette changed (D54).
+//
+// d must be valid; HeaderRest returns its error otherwise.
+func HeaderRest(d *doc.Doc) (string, error) {
+	h := d.Header()
+	if err := h.Validate(); err != nil {
+		return "", err
+	}
+	w := &writer{d: h}
+	w.header()
+	w.meta()
+	w.rest()
+	return w.buf.String(), nil
+}
+
+// rest writes the sections between the palette and the cels.
+func (w *writer) rest() {
 	w.ramps()
 	w.symmetry()
 	w.layers()
@@ -34,8 +59,6 @@ func Serialize(d *doc.Doc) ([]byte, error) {
 	w.variants()
 	w.lint()
 	w.parts()
-	w.cels()
-	return w.buf.Bytes(), nil
 }
 
 type writer struct {

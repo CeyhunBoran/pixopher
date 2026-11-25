@@ -53,41 +53,46 @@ error[usage]: n must be at least 1, not 0
 hint: see `pixopher undo --help`
 
 $ pxo undo 2 --dry-run
-exit 3
---- stderr
-error[undo_conflict]: undoing rev 2 (t_0002) would overwrite later changes to the document header (palette, ramps, ...)
-hint: they were changed by t_0003; pass --force to undo anyway
+exit 0
+--- stdout
+ok rev 7  +24px  bbox 0,1 8,7  undid t_0002, t_0001  (dry run)
+
+$ pxo palette set b #5d275d --as bot --json
+exit 0
+--- stdout
+{"ok":true,"rev":6,"changed":0,"warnings":[]}
 
 $ pxo undo 2
 exit 3
 --- stderr
-error[undo_conflict]: undoing rev 2 (t_0002) would overwrite later changes to the document header (palette, ramps, ...)
-hint: they were changed by t_0003; pass --force to undo anyway
+error[undo_conflict]: undoing rev 2 (t_0002) would overwrite later changes to palette entry b
+hint: they were changed by t_0006; pass --force to undo anyway
 
 $ pxo undo --json
 exit 3
 --- stdout
-{"ok":false,"error":{"code":"undo_conflict","message":"undoing rev 2 (t_0002) would overwrite later changes to the document header (palette, ramps, ...)","hint":"they were changed by t_0003; pass --force to undo anyway","details":{"target":2,"count":0,"pixels":[],"meta":true,"txs":["t_0003"]}}}
+{"ok":false,"error":{"code":"undo_conflict","message":"undoing rev 2 (t_0002) would overwrite later changes to palette entry b","hint":"they were changed by t_0006; pass --force to undo anyway","details":{"target":2,"count":0,"pixels":[],"meta":true,"txs":["t_0006"]}}}
 
 $ pxo undo --any --as bot --json
 exit 0
 --- stdout
-{"ok":true,"rev":6,"changed":8,"bbox":[0,7,8,1],"undone":[{"rev":3,"tx":"t_0003"}],"warnings":[]}
+{"ok":true,"rev":7,"changed":0,"undone":[{"rev":6,"tx":"t_0006"}],"warnings":[]}
 
 $ pxo log
 exit 0
 --- stdout
-rev 6  t_0006  bot  2026-11-25T09:00:00Z  undo rev 3
+rev 7  t_0007  bot  2026-11-25T09:00:00Z  undo rev 6
+rev 6  t_0006  bot  2026-11-25T09:00:00Z  palette set b #5d275d  (undone)
 rev 5  t_0005  cli  2026-11-25T09:00:00Z  undo rev 4
 rev 4  t_0004  cli  2026-11-25T09:00:00Z  fill 6,0 #29366f  (undone)
-rev 3  t_0003  bot  2026-11-25T09:00:00Z  line 0,7 7,7 #38b764  (undone)
+rev 3  t_0003  bot  2026-11-25T09:00:00Z  line 0,7 7,7 #38b764
 rev 2  t_0002  cli  2026-11-25T09:00:00Z  px 2,2 #1a1c2c 3,2 #1a1c2c  -m 'the eyes'
 rev 1  t_0001  cli  2026-11-25T09:00:00Z  rect 1,1,4,4 #ef7d57
 
 $ pxo redo --as bot
 exit 0
 --- stdout
-ok rev 7  +8px  bbox 0,7 8,1  redid t_0003
+ok rev 8  +0px  redid t_0006
 
 $ pxo redo 3 --json
 exit 2
@@ -97,18 +102,18 @@ exit 2
 $ pxo redo --json
 exit 0
 --- stdout
-{"ok":true,"rev":8,"changed":40,"bbox":[0,0,8,7],"redone":[{"rev":4,"tx":"t_0004"}],"warnings":[]}
+{"ok":true,"rev":9,"changed":40,"bbox":[0,0,8,7],"redone":[{"rev":4,"tx":"t_0004"}],"warnings":[]}
 
 $ pxo undo --any --step --expect-rev 1
 exit 3
 --- stderr
-error[rev_conflict]: hero.pxo is at rev 8, not 1
-hint: another write happened; look at the document again, then retry with --expect-rev 8
+error[rev_conflict]: hero.pxo is at rev 9, not 1
+hint: another write happened; look at the document again, then retry with --expect-rev 9
 
-$ pxo undo 5 --any
+$ pxo undo 6 --any
 exit 2
 --- stderr
-error[no_history]: only 4 transactions to undo, not 5
+error[no_history]: only 5 transactions to undo, not 6
 
 $ pxo log --limit -1
 exit 1
@@ -147,15 +152,15 @@ Flags:
 Global Flags:
       --json   machine-readable output (PIXOPHER_JSON=1 turns it on everywhere)
 
-$ pxo undo 4 --any --json
+$ pxo undo 5 --any --json
 exit 0
 --- stdout
-{"ok":true,"rev":12,"changed":64,"bbox":[0,0,8,8],"undone":[{"rev":4,"tx":"t_0004"},{"rev":3,"tx":"t_0003"},{"rev":2,"tx":"t_0002"},{"rev":1,"tx":"t_0001"}],"warnings":[]}
+{"ok":true,"rev":14,"changed":64,"bbox":[0,0,8,8],"undone":[{"rev":6,"tx":"t_0006"},{"rev":4,"tx":"t_0004"},{"rev":3,"tx":"t_0003"},{"rev":2,"tx":"t_0002"},{"rev":1,"tx":"t_0001"}],"warnings":[]}
 
 $ pxo log --limit 3
 exit 0
 --- stdout
-rev 12  t_0009  cli  2026-11-25T09:00:00Z  undo rev 1
-rev 11  t_0009  cli  2026-11-25T09:00:00Z  undo rev 2
-rev 10  t_0009  cli  2026-11-25T09:00:00Z  undo rev 3
+rev 14  t_0010  cli  2026-11-25T09:00:00Z  undo rev 1
+rev 13  t_0010  cli  2026-11-25T09:00:00Z  undo rev 2
+rev 12  t_0010  cli  2026-11-25T09:00:00Z  undo rev 3
 

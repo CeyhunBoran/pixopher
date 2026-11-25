@@ -222,8 +222,9 @@ the file is append-only.
 - **Undo works on transactions**: `undo` reverts every entry of the latest
   non-undone `tx` by the current author (`--any` for anyone's). `undo --step`
   reverts only the latest entry. `redo` mirrors both. If another author has
-  since changed the same pixels, undo fails with `undo_conflict` unless
-  `--force` is given (see D20 in [decisions.md](decisions.md)).
+  since changed the same pixels or palette entries, undo fails with
+  `undo_conflict` unless `--force` is given (see D20 and D54 in
+  [decisions.md](decisions.md)).
 
 - `ops` holds the normalized script lines that were applied. This powers
   replay, timelapse and the captions in viewers.

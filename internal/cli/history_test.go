@@ -34,11 +34,14 @@ func TestHistoryTranscript(t *testing.T) {
 	s.sh("log")
 	s.sh("log --limit 2 --json")
 
-	// cli's undo skips bot's line. The px step then conflicts, because the
-	// line added a palette entry after it (D31).
+	// cli's undo skips bot's line. The line added a palette entry after the
+	// px step, but undo only checks the entries a step changed (D54), so
+	// the px step can be undone. Once bot recolors the px step's own entry,
+	// it conflicts.
 	s.sh("undo --json")
 	s.sh("undo 0")
 	s.sh("undo 2 --dry-run")
+	s.sh("palette set b #5d275d --as bot --json")
 	s.sh("undo 2")
 	s.sh("undo --json")
 	s.sh("undo --any --as bot --json")
@@ -47,12 +50,12 @@ func TestHistoryTranscript(t *testing.T) {
 	s.sh("redo 3 --json")
 	s.sh("redo --json")
 	s.sh("undo --any --step --expect-rev 1")
-	s.sh("undo 5 --any")
+	s.sh("undo 6 --any")
 	s.sh("log --limit -1")
 	s.sh("undo --help")
 
 	// Undo everything: the document is the fresh one again, apart from rev.
-	s.sh("undo 4 --any --json")
+	s.sh("undo 5 --any --json")
 	s.sh("log --limit 3")
 
 	golden.Check(t, filepath.Join(testdata, "history.golden"), []byte(s.out.String()))

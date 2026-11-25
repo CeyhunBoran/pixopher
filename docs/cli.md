@@ -288,8 +288,10 @@ pxo replay [--from rev] [--speed 2x] [--tui]     [M7]
 `-m`, `--as`, `--expect-rev`, `--dry-run`, `--json`). They read
 the document's effective history (D49): entries above the document's rev,
 or abandoned after a rollback, are ignored with a warning. Each reverted or
-re-applied entry is checked against the document first, and a pixel or
-header that changed since is an `undo_conflict` unless `--force` (D20).
+re-applied entry is checked against the document first, and a pixel,
+palette entry or other header part it changed that changed since is an
+`undo_conflict` unless `--force` (D20). Palette entries are matched by key,
+so another author's new color doesn't block an undo (D54).
 Nothing to undo or redo is `no_history`. `redo` brings back what the same
 author undid, until that author draws again. The result adds the entries
 acted on, in order:

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/CeyhunBoran/pixopher/internal/errs"
 	"github.com/CeyhunBoran/pixopher/internal/golden"
 	"github.com/CeyhunBoran/pixopher/internal/history"
+	"github.com/CeyhunBoran/pixopher/internal/ops"
 	"github.com/CeyhunBoran/pixopher/internal/pxofile"
 )
 
@@ -172,20 +172,164 @@ func TestUndoConflict(t *testing.T) {
 	}
 }
 
-// TestUndoHeaderConflict: a header changed since (another auto entry) is a
-// conflict for an entry that changed the header.
-func TestUndoHeaderConflict(t *testing.T) {
+// builtin builds a step of one built-in op from its CLI tokens.
+func builtin(t *testing.T, name string, tokens ...string) Step {
+	t.Helper()
+	op, ok := ops.Default.Lookup(name)
+	if !ok {
+		t.Fatalf("no op %q", name)
+	}
+	args, err := ops.Parse(op.Spec().Args, tokens)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return Step{Calls: []ops.Call{{Op: op.(ops.Mutator), Args: args, Line: ops.Format(op.Spec(), args)}}}
+}
+
+// keyAt returns the key of the palette entry at a pixel.
+func keyAt(t *testing.T, path string, x, y int) string {
+	t.Helper()
+	d, err := Direct{}.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d.Palette.Entries[d.Pixel(0, 0, x, y)].Key
+}
+
+func keys(t *testing.T, path string) string {
+	t.Helper()
+	d, err := Direct{}.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ks []string
+	for _, e := range d.Palette.Entries {
+		ks = append(ks, e.Key)
+	}
+	return strings.Join(ks, " ")
+}
+
+// TestUndoOtherAuthorsColor: another author's new palette entry doesn't
+// block undoing an entry that added one before it (D54). The undo removes
+// a's entry and renumbers b's pixel, and the redo puts the document back
+// byte for byte.
+func TestUndoOtherAuthorsColor(t *testing.T) {
 	path := newFile(t)
 	apply(t, path, "a", step(t, "", "paint #ff0000 1,1"))
 	apply(t, path, "b", step(t, "", "paint #00ff00 5,5"))
-	e := undoErr(t, path, "a", history.Request{}, errs.UndoConflict)
-	if d := e.Details.(history.Conflict); !d.Meta || d.Count != 0 || !reflect.DeepEqual(d.Txs, []string{"t_0002"}) {
-		t.Fatalf("details = %s", asJSON(t, d))
+	drawn := read(t, path)
+	res := undo(t, path, "a", history.Request{})
+	if got, want := asJSON(t, res), `{"ok":true,"rev":3,"changed":2,"bbox":[1,1,5,5],"undone":[{"rev":1,"tx":"t_0001"}],"warnings":[]}`; got != want {
+		t.Fatalf("undo = %s", got)
 	}
-	// Forcing would drop b's entry while b's pixel still uses it.
-	e = undoErr(t, path, "a", history.Request{Force: true}, errs.UndoConflict)
-	if !strings.Contains(e.Message, "invalid document") {
-		t.Fatalf("message %q", e.Message)
+	if got := keys(t, path); got != ". o b" {
+		t.Fatalf("palette keys %q, want \". o b\"", got)
+	}
+	if d, _ := (Direct{}).Load(path); d.Pixel(0, 0, 1, 1) != doc.Transparent || keyAt(t, path, 5, 5) != "b" {
+		t.Fatal("undo should clear 1,1 and keep 5,5 on b's entry")
+	}
+	_ = undo(t, path, "a", history.Request{Redo: true})
+	sameDoc(t, read(t, path), drawn)
+	golden.Check(t, "testdata/undo-palette.golden.pxo.log", read(t, pxofile.LogPath(path)))
+}
+
+// TestUndoRenumbered: pixel-only entries keep working after another
+// author's undo renumbered their palette entry, because their indices are
+// read against the palette they were written with (D54).
+func TestUndoRenumbered(t *testing.T) {
+	path := newFile(t)
+	orig := read(t, path)
+	apply(t, path, "a", step(t, "", "paint #ff0000 1,1"))
+	apply(t, path, "b", step(t, "", "paint #00ff00 5,5"))
+	apply(t, path, "b", step(t, "", "paint b 6,6"))
+	_ = undo(t, path, "a", history.Request{})
+	if keyAt(t, path, 6, 6) != "b" {
+		t.Fatal("6,6 should still use b's entry")
+	}
+	_ = undo(t, path, "b", history.Request{N: 2})
+	sameDoc(t, read(t, path), orig)
+	_ = undo(t, path, "a", history.Request{Redo: true})
+	_ = undo(t, path, "b", history.Request{Redo: true, N: 2})
+	if keyAt(t, path, 1, 1) != "a" || keyAt(t, path, 5, 5) != "b" || keyAt(t, path, 6, 6) != "b" {
+		t.Fatal("redoing everything should bring back every pixel on its entry")
+	}
+	_ = undo(t, path, "x", history.Request{Any: true, N: 3})
+	sameDoc(t, read(t, path), orig)
+}
+
+// TestUndoEntryChanged: recoloring an entry a step added is a conflict
+// blamed on the recolor alone, not on an unrelated new color in between.
+// --force reverts anyway.
+func TestUndoEntryChanged(t *testing.T) {
+	path := newFile(t)
+	apply(t, path, "a", step(t, "", "paint #ff0000 1,1"))
+	apply(t, path, "c", step(t, "", "paint #00ff00 7,7"))
+	apply(t, path, "b", builtin(t, "palette set", "a", "#0000ff"))
+	e := undoErr(t, path, "a", history.Request{}, errs.UndoConflict)
+	if got, want := asJSON(t, e), `{"code":"undo_conflict","message":"undoing rev 1 (t_0001) would overwrite later changes to palette entry a","hint":"they were changed by t_0003; pass --force to undo anyway","details":{"target":1,"count":0,"pixels":[],"meta":true,"txs":["t_0003"]}}`; got != want {
+		t.Fatalf("error = %s\nwant    %s", got, want)
+	}
+	_ = undo(t, path, "a", history.Request{Force: true})
+	if got := keys(t, path); got != ". o b" {
+		t.Fatalf("palette keys %q after the forced undo", got)
+	}
+	if keyAt(t, path, 1, 1) != "." || keyAt(t, path, 7, 7) != "b" {
+		t.Fatal("forced undo should clear 1,1 and keep c's pixel")
+	}
+}
+
+// TestUndoRampWithNewColor: undoing a ramp add only checks the header
+// beyond the palette, so another author's new color doesn't block it.
+func TestUndoRampWithNewColor(t *testing.T) {
+	path := newFile(t)
+	apply(t, path, "a", step(t, "", "paint #ff0000 1,1"))
+	before := read(t, path)
+	apply(t, path, "a", builtin(t, "ramp add", "r", "o", "a"))
+	apply(t, path, "b", step(t, "", "paint #00ff00 5,5"))
+	_ = undo(t, path, "a", history.Request{})
+	d, _ := Direct{}.Load(path)
+	if len(d.Ramps) != 0 || keys(t, path) != ". o a b" {
+		t.Fatalf("ramps %v, keys %q", d.Ramps, keys(t, path))
+	}
+	// Undoing b too gives the document from before the ramp.
+	_ = undo(t, path, "b", history.Request{})
+	sameDoc(t, read(t, path), before)
+}
+
+// TestUndoPaletteRm: undoing a palette rm puts the entry back in its place
+// and renumbers the entries after it, including one added since.
+func TestUndoPaletteRm(t *testing.T) {
+	path := newFile(t)
+	apply(t, path, "a", step(t, "", "paint #ff0000 1,1"), step(t, "", "paint #0000ff 2,2"))
+	apply(t, path, "a", builtin(t, "palette rm", "a", "--replace", "o"))
+	apply(t, path, "b", builtin(t, "palette add", "z", "#00ff00", "green"), step(t, "", "paint z 3,3"))
+	_ = undo(t, path, "a", history.Request{})
+	if got := keys(t, path); got != ". o a b z" {
+		t.Fatalf("palette keys %q", got)
+	}
+	if keyAt(t, path, 1, 1) != "a" || keyAt(t, path, 2, 2) != "b" || keyAt(t, path, 3, 3) != "z" {
+		t.Fatal("pixels should be back on a, b and z")
+	}
+}
+
+// TestUndoReusedKey: a's entry is undone and another author's new color
+// takes its key. Redoing a would give b's pixels a's color, so it is
+// refused even with --force (D54).
+func TestUndoReusedKey(t *testing.T) {
+	path := newFile(t)
+	apply(t, path, "a", step(t, "", "paint #ff0000 1,1"))
+	_ = undo(t, path, "a", history.Request{})
+	apply(t, path, "b", step(t, "", "paint #00ff00 2,2"))
+	before := read(t, path)
+	for _, force := range []bool{false, true} {
+		e := undoErr(t, path, "a", history.Request{Redo: true, Force: force}, errs.UndoConflict)
+		if !strings.Contains(e.Message, `but entry "auto_00ff00" (key a) has taken its key since`) ||
+			!strings.Contains(e.Hint, "can't override") {
+			t.Fatalf("force=%v: %q / %q", force, e.Message, e.Hint)
+		}
+	}
+	if !bytes.Equal(read(t, path), before) {
+		t.Fatal("a failed redo wrote the document")
 	}
 }
 
@@ -199,7 +343,8 @@ func TestUndoEntryInUse(t *testing.T) {
 	before := read(t, path)
 	for _, force := range []bool{false, true} {
 		e := undoErr(t, path, "a", history.Request{Force: force}, errs.UndoConflict)
-		if !strings.Contains(e.Message, "would leave an invalid document") || !strings.Contains(e.Hint, "can't override") {
+		if e.Message != `undoing rev 1 (t_0001) would remove palette entry "auto_ff0000" (key a), which pixel 5,5 still uses` ||
+			!strings.Contains(e.Hint, "can't override") {
 			t.Fatalf("force=%v: %q / %q", force, e.Message, e.Hint)
 		}
 	}
