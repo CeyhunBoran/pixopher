@@ -286,6 +286,18 @@ func TestBuiltinTranscript(t *testing.T) {
 	s.sh("palette --help")
 	s.sh("palette rm --help")
 
+	// The show, get and stats examples in docs/cli.md and
+	// docs/agent-workflow.md.
+	s.sh("new s.pxo --size 12x4")
+	s.sh("rect s.pxo 2,0 8,4 ink --outline")
+	s.sh("px s.pxo 4,1 red 7,2 white")
+	s.sh("show s.pxo --rulers --legend")
+	s.sh("show s.pxo --json")
+	s.sh("get s.pxo 4,1")
+	s.sh("get s.pxo 4,1 --json")
+	s.sh("stats s.pxo")
+	s.sh("stats s.pxo --json")
+
 	golden.Check(t, filepath.Join(testdata, "builtin.golden"), []byte(s.out.String()))
 	for _, f := range []string{"hero.pxo", "hero.pxo.log", "pal.pxo", "pal.pxo.log"} {
 		data, err := os.ReadFile(f)

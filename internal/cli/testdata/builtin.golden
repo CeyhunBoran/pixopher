@@ -506,3 +506,60 @@ Flags:
 Global Flags:
       --json   machine-readable output (PIXOPHER_JSON=1 turns it on everywhere)
 
+$ pxo new s.pxo --size 12x4
+exit 0
+--- stdout
+ok rev 0  +0px
+
+$ pxo rect s.pxo 2,0 8,4 ink --outline
+exit 0
+--- stdout
+ok rev 1  +20px  bbox 2,0 8,4
+
+$ pxo px s.pxo 4,1 red 7,2 white
+exit 0
+--- stdout
+ok rev 2  +2px  bbox 4,1 4,2
+
+$ pxo show s.pxo --rulers --legend
+exit 0
+--- stdout
+   0         1
+   012345678901
+0  ..oooooooo..
+1  ..o.r....o..
+2  ..o....w.o..
+3  ..oooooooo..
+legend: . transparent  o ink #1a1c2c  r red #b13e53  w white #f4f4f4
+
+$ pxo show s.pxo --json
+exit 0
+--- stdout
+{"ok":true,"origin":[0,0],"rows":["..oooooooo..","..o.r....o..","..o....w.o..","..oooooooo.."],"legend":{".":{"name":"transparent","color":"#00000000"},"o":{"name":"ink","color":"#1a1c2c"},"r":{"name":"red","color":"#b13e53"},"w":{"name":"white","color":"#f4f4f4"}}}
+
+$ pxo get s.pxo 4,1
+exit 0
+--- stdout
+r  #b13e53  red
+
+$ pxo get s.pxo 4,1 --json
+exit 0
+--- stdout
+{"ok":true,"at":[4,1],"key":"r","name":"red","color":"#b13e53"}
+
+$ pxo stats s.pxo
+exit 0
+--- stdout
+size     12x4
+filled   22 of 48 px (45.83%)
+bbox     2,0 8,4
+colors   3
+  20  o  #1a1c2c  ink
+   1  r  #b13e53  red
+   1  w  #f4f4f4  white
+
+$ pxo stats s.pxo --json
+exit 0
+--- stdout
+{"ok":true,"size":[12,4],"filled":22,"coverage":0.4583,"bbox":[2,0,8,4],"colors":[{"key":"o","name":"ink","color":"#1a1c2c","count":20},{"key":"r","name":"red","color":"#b13e53","count":1},{"key":"w","name":"white","color":"#f4f4f4","count":1}]}
+
