@@ -10,7 +10,7 @@ import (
 
 func TestExitCode(t *testing.T) {
 	for c, want := range map[Code]int{
-		Usage: 1, ParseError: 2, InvalidColor: 2, UnknownColor: 2, OutOfBounds: 2, TooLarge: 2,
+		Usage: 1, ParseError: 2, InvalidColor: 2, UnknownColor: 2, OutOfBounds: 2, TooLarge: 2, AlreadyExists: 2, InUse: 2,
 		RevConflict: 3, Locked: 3, UndoConflict: 3, IO: 4, NoFile: 4, ServerUnavailable: 4,
 	} {
 		if got := ExitCode(c); got != want {

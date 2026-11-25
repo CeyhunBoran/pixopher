@@ -1,4 +1,4 @@
-$ pxo new hero.pxo --size 8x8 --json
+$ pxo new hero.pxo --size 8x8 --palette none --json
 exit 0
 --- stdout
 {"ok":true,"rev":0,"changed":0,"warnings":[]}

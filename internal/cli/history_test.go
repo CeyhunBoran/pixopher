@@ -21,7 +21,7 @@ func TestHistoryTranscript(t *testing.T) {
 	t.Chdir(t.TempDir())
 	s := &session{t: t, env: map[string]string{}, ops: ops.Default}
 
-	s.sh("new hero.pxo --size 8x8 --json")
+	s.sh("new hero.pxo --size 8x8 --palette none --json")
 	fresh, err := os.ReadFile("hero.pxo")
 	if err != nil {
 		t.Fatal(err)

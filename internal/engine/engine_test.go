@@ -517,7 +517,7 @@ func TestCreate(t *testing.T) {
 	var b Direct
 
 	// A dry run reports and writes nothing, not even the lock file.
-	res, err := b.Create(path, newCall(t, path, "--size", "4x2", "--bg", "#102030"), Options{Now: clock, DryRun: true})
+	res, err := b.Create(path, newCall(t, path, "--size", "4x2", "--bg", "#102030", "--palette", "none"), Options{Now: clock, DryRun: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -528,7 +528,7 @@ func TestCreate(t *testing.T) {
 		t.Fatal("dry run wrote a file")
 	}
 
-	res, err = b.Create(path, newCall(t, path, "--size", "4x2", "--bg", "#102030"), opts())
+	res, err = b.Create(path, newCall(t, path, "--size", "4x2", "--bg", "#102030", "--palette", "none"), opts())
 	if err != nil {
 		t.Fatal(err)
 	}

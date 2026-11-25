@@ -1,0 +1,10 @@
+{"key_width":1,"entries":[{"key":"o","name":"ink","color":"#1a1c2c"},{"key":"g","name":"glass","color":"#38b764"},{"key":"G","name":"glass_light","color":"#a7f070"},{"key":"r","name":"liquid_dark","color":"#b13e53"},{"key":"R","name":"liquid","color":"#ef7d57"},{"key":"w","name":"shine","color":"#f4f4f4"}],"ramps":{"glass":{"steps":["o","g","G"],"base":1},"liquid":{"steps":["r","R","w"],"base":1}}}
+---
+o  #1a1c2c  ink
+g  #38b764  glass
+G  #a7f070  glass_light
+r  #b13e53  liquid_dark
+R  #ef7d57  liquid
+w  #f4f4f4  shine
+ramp glass   o [g] G
+ramp liquid  r [R] w

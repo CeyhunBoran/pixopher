@@ -41,17 +41,41 @@ commands (`'#ff8800'`). Batch scripts don't need quotes.
 ## Palette commands
 
 ```
-pxo palette list                       # keys, names, hex, ramps; --json
-pxo palette add k '#ffcc99' skin       # key, color, name
-pxo palette set skin '#ffd0a0'         # change a color (all pixels using it change)
-pxo palette rename skin flesh
-pxo palette rm k [--replace o]         # remove; pixels using it are remapped or the command fails
+pxo palette list                       # keys, names, hex, ramps; --json   [done]
+pxo palette add k '#ffcc99' skin       # key, color, name   [done]
+pxo palette set skin '#ffd0a0'         # change a color (all pixels using it change)   [done]
+pxo palette rename skin flesh          # [done]
+pxo palette rm k [--replace o]         # remove; pixels using it are remapped or the command fails   [done]
 pxo palette load sweetie16             # built-in or file (.hex .gpl .pal .ase .png strip)
 pxo palette save my.gpl
 pxo palette tidy                       # merge duplicates, name auto entries, drop unused (with --unused)
-pxo ramp add skin S s t [--base s]
+pxo ramp add skin S s t [--base s]     # [done]
 pxo ramp gen skin '#e0a070' --steps 4 --hue-shift 12 --keys "S s t T"
-pxo ramp rm skin
+pxo ramp rm skin                       # [done]
+```
+
+Entries are picked by key or name (`key:` and `name:` force one); ramp steps
+and hex colors don't pick an entry. `add` and `set` take `#hex` colors.
+Removing an entry renumbers the entries after it on every cel and part. It
+fails with `in_use` while the entry is a ramp step or a variant override, or
+while pixels use it and no `--replace` is given. A taken key or name is
+`already_exists` (D53).
+
+`palette list --json` is one line (wrapped here):
+
+```json
+{"ok": true, "key_width": 1,
+ "entries": [{"key": "o", "name": "ink", "color": "#1a1c2c"}, {"key": "g", "name": "glass", "color": "#38b764"}],
+ "ramps": {"glass": {"steps": ["o", "g"], "base": 0}}}
+```
+
+Without `--json` it prints one line per entry, then one per ramp with the
+base step in brackets:
+
+```
+o  #1a1c2c  ink
+g  #38b764  glass
+ramp glass  [o] g
 ```
 
 Writers quote palette keys that are not bare TOML keys. Bare keys are
@@ -91,9 +115,18 @@ pxo recolor glass=liquid            # every pixel using ramp glass now uses ramp
 pxo recolor R=o --region flask      # remap a single key inside a region
 ```
 
-## Built-in palette library [planned]
+## Built-in palette library [wip]
 
-Ship a set of well-known, freely licensed palettes embedded in the binary.
+`default` and `sweetie16` are **[done]** (D53). Both are the 16 colors of
+Sweetie 16 by GrafxKid, with the ramps `warm`, `green`, `blue` and `gray`.
+`sweetie16` uses the keys `0`–`f` in published order, and `default` uses keys
+that recall the names (`o` ink, `r` red, `c` coral, `y` yellow, `l` lime,
+`g` green, `t` teal, `n` navy, `b` blue, `s` sky, `i` ice, `w` white, `f`
+fog, `a` ash, `d` dusk, `p` plum). `pxo new` starts from `default`;
+`--palette sweetie16` picks the other one and `--palette none` an empty
+palette.
+
+The rest is **[planned]**: ship a set of well-known, freely licensed palettes embedded in the binary.
 Only palettes whose authors allow redistribution get included, and the
 attribution goes in `palettes/README.md`. Candidates:
 

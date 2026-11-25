@@ -210,7 +210,7 @@ func TestBuiltinTranscript(t *testing.T) {
 	t.Chdir(t.TempDir())
 	s := &session{t: t, env: map[string]string{}, ops: ops.Default}
 
-	s.sh("new hero.pxo --size 16x16 --json")
+	s.sh("new hero.pxo --size 16x16 --palette none --json")
 	s.sh("new hero.pxo")
 	s.sh("new hero --json")
 	s.sh("new big.pxo --size 2000x10 --json")
@@ -253,8 +253,32 @@ func TestBuiltinTranscript(t *testing.T) {
 	s.sh("new --help")
 	s.sh("info --help")
 
+	// Palettes: new starts from the default palette unless told otherwise.
+	s.sh("new pal.pxo --size 4x4 --palette nosuch --json")
+	s.sh("new pal.pxo --size 4x4 --bg ink --json")
+	s.sh("palette list pal.pxo")
+	s.sh("use pal.pxo")
+	s.sh("palette add k #ffcc99 skin --json")
+	s.sh("palette add k #000000 other --json")
+	s.sh("palette set skin #ffd0a0")
+	s.sh("palette rename skin flesh --json")
+	s.sh("ramp add flesh c k y --base k --json")
+	s.sh("px 0,0 flesh 1,0 flesh-1 2,0 flesh+1")
+	s.sh("palette rm flesh --json")
+	s.sh("ramp rm flesh")
+	s.sh("palette rm flesh --json")
+	s.sh("palette rm flesh --replace coral --json")
+	s.sh("undo --json")
+	s.sh("redo --json")
+	s.sh("palette list --json")
+	s.sh("ramp rm nosuch --json")
+	s.sh("palette --help")
+	s.sh("palette rm --help")
+	s.sh("new sweet.pxo --size 2x2 --palette sweetie16 --bg 0")
+	s.sh("palette list sweet.pxo --json")
+
 	golden.Check(t, filepath.Join(testdata, "builtin.golden"), []byte(s.out.String()))
-	for _, f := range []string{"hero.pxo", "hero.pxo.log"} {
+	for _, f := range []string{"hero.pxo", "hero.pxo.log", "pal.pxo", "pal.pxo.log"} {
 		data, err := os.ReadFile(f)
 		if err != nil {
 			t.Fatal(err)

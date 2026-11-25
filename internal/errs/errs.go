@@ -39,6 +39,8 @@ const (
 	IO                 Code = "io"
 	UnsupportedFormat  Code = "unsupported_format"
 	ServerUnavailable  Code = "server_unavailable"
+	AlreadyExists      Code = "already_exists" // a key or name is taken (D53)
+	InUse              Code = "in_use"         // removing something still used or referenced (D53)
 )
 
 // Process exit codes from docs/cli.md.

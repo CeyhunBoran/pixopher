@@ -14,6 +14,7 @@ import (
 	"github.com/CeyhunBoran/pixopher/internal/errs"
 	"github.com/CeyhunBoran/pixopher/internal/golden"
 	"github.com/CeyhunBoran/pixopher/internal/pxofile"
+	"github.com/CeyhunBoran/pixopher/palettes"
 )
 
 // fixture returns a test document: "potion" is testdata/potion.pxo (16x16,
@@ -31,6 +32,41 @@ func fixture(t testing.TB, name string) *doc.Doc {
 		if err != nil {
 			t.Fatal(err)
 		}
+		return d
+	case "default":
+		d, _ := doc.New(8, 8)
+		pal, _ := palettes.Load(palettes.Default)
+		d.Palette, d.Ramps = pal.Palette, pal.Ramps
+		return d
+	case "linked":
+		// potion with a second frame whose body cel links to frame 0, and
+		// pixels on the shine layer.
+		d := fixture(t, "potion")
+		d.Frames = append(d.Frames, doc.Frame{DurationMS: 120})
+		d.Cels[doc.CelKey{Layer: 0, Frame: 1}] = &doc.Cel{Linked: true}
+		d.SetPixel(1, 0, 5, 5, 6)  // w
+		d.SetPixel(1, 0, 6, 5, 3)  // G
+		d.SetPixel(1, 1, 0, 15, 5) // R on frame 1
+		return d
+	case "variants":
+		// potion with an entry outside every ramp, and a variant that
+		// overrides it and the glass ramp.
+		d := fixture(t, "potion")
+		d.Palette.Entries = append(d.Palette.Entries, doc.Entry{Key: "x", Name: "extra", Color: doc.RGBA{R: 0x12, G: 0x34, B: 0x56, A: 0xff}})
+		d.Variants["night"] = doc.Variant{
+			Entries: map[string]doc.RGBA{"extra": {A: 0xff}},
+			Ramps:   map[string][]doc.RGBA{"glass": {{A: 0xff}, {R: 1, A: 0xff}, {R: 2, A: 0xff}}},
+		}
+		return d
+	case "used":
+		// An 8x8 document on a locked layer, with one pixel of entry red.
+		d, _ := doc.New(8, 8)
+		d.Palette.Entries = append(d.Palette.Entries,
+			doc.Entry{Key: "k", Name: "red", Color: doc.RGBA{R: 0xff, A: 0xff}},
+			doc.Entry{Key: "b", Name: "blue", Color: doc.RGBA{B: 0xff, A: 0xff}})
+		d.SetPixel(0, 0, 0, 0, 1)
+		d.SetPixel(0, 0, 1, 0, 2)
+		d.Layers[0].Locked = true
 		return d
 	case "blank", "full", "locked":
 		d, err := doc.New(8, 8)
@@ -67,6 +103,12 @@ func call(t testing.TB, line string) (Call, error) {
 	t.Helper()
 	f := strings.Fields(line)
 	op, ok := Default.Lookup(f[0])
+	if len(f) > 1 {
+		// Two-word ops: palette add, ramp rm, ...
+		if op2, ok2 := Default.Lookup(f[0] + " " + f[1]); ok2 {
+			op, ok, f = op2, true, f[1:]
+		}
+	}
 	if !ok {
 		t.Fatalf("no op %q", f[0])
 	}
@@ -116,6 +158,23 @@ func TestBuiltinGolden(t *testing.T) {
 		{"replace-transparent", "potion", []string{"replace . '#202020'"}},
 		{"replace-unknown-hex", "potion", []string{"replace #abcdef ink"}},
 		{"replace-same", "potion", []string{"replace ink o"}},
+		{"default-draw", "default", []string{"px 0,0 ink 1,0 warm 2,0 green+1 3,0 gray:0 4,0 #ffcd75"}},
+		{"palette-add", "potion", []string{"palette add k #ffcc99 skin"}},
+		{"palette-add-alpha", "blank", []string{"palette add k #ff000080 glow"}},
+		{"palette-set", "potion", []string{"palette set glass #00ff00"}},
+		{"palette-set-key", "potion", []string{"palette set key:w #ffffff"}},
+		{"palette-set-same", "potion", []string{"palette set ink #1a1c2c"}},
+		{"palette-rename", "potion", []string{"palette rename ink outline"}},
+		{"palette-rename-same", "potion", []string{"palette rename o ink"}},
+		{"palette-rename-variant", "variants", []string{"palette rename extra spare"}},
+		{"palette-rm-unused", "potion", []string{"ramp rm liquid", "palette rm r"}},
+		{"palette-rm-replace", "potion", []string{"ramp rm glass", "palette rm g --replace G"}},
+		{"palette-rm-transparent", "potion", []string{"ramp rm glass", "palette rm G --replace ."}},
+		{"palette-rm-linked", "linked", []string{"ramp rm glass", "palette rm o --replace R"}},
+		{"palette-rm-locked", "used", []string{"palette rm red --replace blue"}},
+		{"ramp-add", "potion", []string{"ramp add dark o r g"}},
+		{"ramp-add-base", "potion", []string{"ramp add hot o r R w --base name:liquid"}},
+		{"ramp-rm", "potion", []string{"ramp rm glass"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -197,6 +256,37 @@ func TestBuiltinErrors(t *testing.T) {
 		{"full", "px 0,0 #fedcba", errs.PaletteFull, "", "palette is full"},
 		{"locked", "px 0,0 .", errs.LayerLocked, "", `layer "main" is locked`},
 		{"locked", "erase 0,0", errs.LayerLocked, "", `layer "main" is locked`},
+		{"potion", "palette add o #000000 black", errs.AlreadyExists, "key", `palette key "o" is taken by "ink"`},
+		{"potion", "palette add k #000000 ink", errs.AlreadyExists, "name", `palette entry "ink" already exists`},
+		{"potion", "palette add # #000000 black", errs.InvalidColor, "key", `invalid palette key "#"`},
+		{"potion", "palette add kk #000000 black", errs.InvalidColor, "key", `invalid palette key "kk"`},
+		{"potion", "palette add k ink black", errs.InvalidColor, "color", `palette colors are #hex colors`},
+		{"potion", "palette add k #12 black", errs.InvalidColor, "color", `invalid hex color`},
+		{"potion", "palette add k #000000 9lives", errs.Usage, "name", `invalid name "9lives"`},
+		{"potion", "palette add k #000000 none", errs.Usage, "name", `invalid name "none"`},
+		{"potion", "palette set nosuch #000000", errs.UnknownColor, "entry", `no palette entry "nosuch"`},
+		{"potion", "palette set . #000000", errs.InvalidColor, "entry", "the transparent entry is reserved"},
+		{"potion", "palette set transparent #000000", errs.InvalidColor, "entry", "the transparent entry is reserved"},
+		{"potion", "palette set #1a1c2c #000000", errs.InvalidColor, "entry", `"#1a1c2c" is a color`},
+		{"potion", "palette set glass:0 #000000", errs.UnknownColor, "entry", `no palette entry "glass:0"`},
+		{"potion", "palette set key:ink #000000", errs.UnknownColor, "entry", `no palette entry "key:ink"`},
+		{"potion", "palette rename ink glass", errs.AlreadyExists, "name", `palette entry "glass" already exists`},
+		{"potion", "palette rename ink 1x", errs.Usage, "name", `invalid name "1x"`},
+		{"potion", "palette rm ink", errs.InUse, "entry", `palette entry "ink" is a step of ramp "glass"`},
+		{"variants", "palette rm extra", errs.InUse, "entry", `palette entry "extra" is overridden by variant "night"`},
+		{"used", "palette rm red", errs.InUse, "entry", `palette entry "red" is used by 1 pixel`},
+		{"used", "palette rm red --replace #00ff00", errs.UnknownColor, "replace", "#00ff00 is not in the palette"},
+		{"used", "palette rm red --replace red", errs.InvalidColor, "replace", "--replace is the entry being removed"},
+		{"used", "palette rm red --replace nosuch", errs.UnknownColor, "replace", `unknown color "nosuch"`},
+		{"potion", "ramp add glass o g", errs.AlreadyExists, "name", `ramp "glass" already exists`},
+		{"potion", "ramp add hot o ink", errs.InvalidColor, "step", `palette entry "ink" is given twice`},
+		{"potion", "ramp add hot o .", errs.InvalidColor, "step", "the transparent entry is reserved"},
+		{"potion", "ramp add hot o glass:1", errs.UnknownColor, "step", `no palette entry "glass:1"`},
+		{"potion", "ramp add hot o g --base w", errs.InvalidColor, "base", `base "w" is not a step of the ramp`},
+		{"potion", "ramp add 1hot o", errs.Usage, "name", `invalid name "1hot"`},
+		{"potion", "ramp rm glas", errs.UnknownColor, "name", `no ramp named "glas"`},
+		{"variants", "ramp rm glass", errs.InUse, "name", `ramp "glass" is overridden by variant "night"`},
+		{"potion", "ramp add hot", errs.Usage, "step", ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.line, func(t *testing.T) {
@@ -225,18 +315,40 @@ func TestNewCreate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.W != 4 || d.H != 3 || d.Rev != 0 || len(d.Palette.Entries) != 1 || d.Layers[0].Name != "main" {
+	// The default palette: 16 colors and ramps, ink among them.
+	if d.W != 4 || d.H != 3 || d.Rev != 0 || len(d.Palette.Entries) != 17 || len(d.Ramps) != 4 || d.Layers[0].Name != "main" {
 		t.Fatalf("got %dx%d rev %d, %d entries", d.W, d.H, d.Rev, len(d.Palette.Entries))
 	}
-	// ink is not in the empty palette.
+	ctx := NewCtx(d, 0, 0)
+	if err := cr.Apply(ctx, c.Args); err != nil || ctx.Finish().BBox != (doc.Rect{W: 4, H: 3}) {
+		t.Fatalf("--bg ink: %v", err)
+	}
+	if err := d.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	// --palette none: ink is not in the empty palette.
+	c, _ = call(t, "new hero.pxo --palette none --bg ink")
+	if c.Line != "new hero.pxo --bg ink --palette none" {
+		t.Fatalf("line %q", c.Line)
+	}
+	d, err = cr.Create(c.Args)
+	if err != nil || len(d.Palette.Entries) != 1 || len(d.Ramps) != 0 {
+		t.Fatalf("--palette none: %v", err)
+	}
 	if err := cr.Apply(NewCtx(d, 0, 0), c.Args); errs.CodeOf(err) != errs.UnknownColor {
 		t.Fatalf("--bg ink: %v", err)
 	}
+	c, _ = call(t, "new hero.pxo --palette sweetie16")
+	if d, err := cr.Create(c.Args); err != nil || d.Palette.Entries[1].Key != "0" || d.Palette.Entries[1].Name != "ink" {
+		t.Fatalf("--palette sweetie16: %v", err)
+	}
 	for line, code := range map[string]errs.Code{
-		"new hero":                errs.Usage,
-		"new .pxo":                errs.Usage,
-		"new hero.PXO":            errs.Usage,
-		"new a.pxo --size 2000x8": errs.TooLarge,
+		"new hero":                   errs.Usage,
+		"new .pxo":                   errs.Usage,
+		"new hero.PXO":               errs.Usage,
+		"new a.pxo --size 2000x8":    errs.TooLarge,
+		"new a.pxo --palette nosuch": errs.Usage,
+		"new a.pxo --palette":        errs.Usage,
 	} {
 		c, err := call(t, line)
 		if err == nil {
@@ -246,8 +358,8 @@ func TestNewCreate(t *testing.T) {
 			t.Errorf("%s: %v, want %s", line, err, code)
 		}
 	}
-	if c, _ := call(t, "new a.pxo"); c.Line != "new a.pxo" || c.Args.Size("size") != (Size{32, 32}) {
-		t.Fatalf("default size: %q %v", c.Line, c.Args.Size("size"))
+	if c, _ := call(t, "new a.pxo --palette default"); c.Line != "new a.pxo" || c.Args.Size("size") != (Size{32, 32}) {
+		t.Fatalf("defaults: %q %v", c.Line, c.Args.Size("size"))
 	}
 }
 
@@ -288,6 +400,33 @@ func TestInfoGolden(t *testing.T) {
 			golden.Check(t, filepath.Join("testdata", "info", name+".golden"), buf.Bytes())
 			if !bytes.Equal(serialize(t, d), before) {
 				t.Fatal("info changed the document")
+			}
+		})
+	}
+}
+
+// TestPaletteListGolden compares palette list's JSON and human forms with
+// a golden file, and checks that listing leaves the document unchanged.
+func TestPaletteListGolden(t *testing.T) {
+	for _, name := range []string{"potion", "blank", "default"} {
+		t.Run(name, func(t *testing.T) {
+			d := fixture(t, name)
+			before := serialize(t, d)
+			op, _ := Default.Lookup("palette list")
+			rep, err := op.(Observer).Observe(d, Args{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var buf bytes.Buffer
+			enc := json.NewEncoder(&buf)
+			enc.SetEscapeHTML(false)
+			if err := enc.Encode(rep); err != nil {
+				t.Fatal(err)
+			}
+			buf.WriteString("---\n" + rep.Text())
+			golden.Check(t, filepath.Join("testdata", "palette-list", name+".golden"), buf.Bytes())
+			if !bytes.Equal(serialize(t, d), before) {
+				t.Fatal("palette list changed the document")
 			}
 		})
 	}

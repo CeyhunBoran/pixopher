@@ -633,3 +633,54 @@ without a breaking change. `key_width` is there because agents need it to
 read grids.
 *Consequences*: `schema` and MCP will check whether an op is a `Mutator`
 or an `Observer`.
+
+**D53: Palette commands, built-in palettes and `new --palette`** (2026-11-25)
+- **Ops**: `palette list` is an observation op. `palette add/set/rename/rm`
+  and `ramp add/rm` are mutating ops (two-word names, generated as
+  subcommands) that change the header, so they undo through the meta
+  snapshot (D31).
+- **Picking an entry** (`set`, `rename`, `rm`, ramp steps, `--base`): a key
+  (as long as the key width), then a name, or `key:`/`name:` to force one.
+  Ramp names, ramp steps and hex colors don't pick an entry, so
+  `palette set skin` never edits the base step of ramp `skin` by accident.
+  Unknown entries are `unknown_color` with a "did you mean" hint, and `.` or
+  `transparent` is `invalid_color` (the entry is reserved).
+- **`add`**: `palette add <key> <#hex> <name>` appends. Colors for `add` and
+  `set` are `#hex` only, with any alpha (D28). A key that isn't valid for
+  the key width is `invalid_color` (validity depends on the document, like
+  D43). A bad name is `usage` (D27 doesn't depend on the document).
+- **New codes** (exit 2): `already_exists` for a taken palette key, entry
+  name or ramp name; later adds (layers, regions, tags) reuse it. `in_use`
+  for removing something still used: an entry that is a ramp step, that a
+  variant overrides, or that pixels use without `--replace`, and a ramp that
+  a variant overrides. Removing a ramp never removes its entries.
+- **`rm`**: entries after the removed one move down an index, so pixels of
+  every unlinked cel (all layers and frames, locked ones too, since the
+  document would not be valid otherwise), parts and ramp steps are
+  renumbered. `--replace <color>` repaints the entry's pixels and takes any
+  color syntax that names an existing entry or transparent; a hex in no
+  entry is `unknown_color`, because `palette set` already changes a color in
+  place. `rename` also renames variant overrides.
+- **`changed`** counts pixels whose palette index changed. `palette set`
+  recolors pixels without changing them (`+0px`), and `palette rm` counts
+  renumbered pixels too, even where the color stays the same.
+- **`palette list --json`**: `{"ok", "key_width", "entries": [{"key",
+  "name", "color"}], "ramps": {"<name>": {"steps": [keys], "base": n}}}`.
+  Entries are in palette order without transparent, colors as in the file.
+  The human form is `o  #1a1c2c  ink` per entry and `ramp glass  o [g] G`
+  per ramp, the base step in brackets.
+- **Built-ins**: the top-level `palettes` package embeds one `.pxo` file per
+  palette (palette and ramps only) and depends on `doc` and `pxofile`;
+  `ops` imports it. `sweetie16` is Sweetie 16 by GrafxKid with keys `0`–`f`
+  in published order. `default` has the same colors, names and ramps with
+  keys that recall the names (`o` ink, `r` red, `w` white, ...). Both have
+  the ramps `warm`, `green`, `blue` and `gray`; entry and ramp names
+  `green` and `blue` are shared (D27), so `green+1` is lime.
+- **`new --palette <name|none>`**: default `default` (D46, a public default
+  under D42), `none` for only `.`. An unknown name is `usage`, arg
+  `palette`. Palette files come with `palette load`, which will also be
+  accepted here.
+*Why*: entries are header data, so meta snapshots give undo for free.
+Failing on in-use entries keeps a removal from silently breaking ramps or
+variants. A default palette with ramps lets agents shade from the first
+command.

@@ -1,4 +1,4 @@
-$ pxo new hero.pxo --size 16x16 --json
+$ pxo new hero.pxo --size 16x16 --palette none --json
 exit 0
 --- stdout
 {"ok":true,"rev":0,"changed":0,"warnings":[]}
@@ -213,14 +213,16 @@ Usage:
 
 Examples:
   pxo new hero.pxo
-  pxo new icon.pxo --size 16x16 --bg '#1a1c2c'
+  pxo new icon.pxo --size 16x16 --bg ink
+  pxo new blank.pxo --palette none --bg '#1a1c2c'
 
 Flags:
-      --bg color    fill the canvas with this color (a #hex color adds an entry)
-      --dry-run     report the change without writing anything
-      --force       replace an existing document and remove its history
-  -h, --help        help for new
-      --size size   canvas size, up to 1024x1024 (default 32x32)
+      --bg color         fill the canvas with this color (a #hex color adds an entry)
+      --dry-run          report the change without writing anything
+      --force            replace an existing document and remove its history
+  -h, --help             help for new
+      --palette string   built-in palette to start with (default, sweetie16), or none for an empty one (default "default")
+      --size size        canvas size, up to 1024x1024 (default 32x32)
 
 Global Flags:
       --json   machine-readable output (PIXOPHER_JSON=1 turns it on everywhere)
@@ -243,4 +245,174 @@ Flags:
 
 Global Flags:
       --json   machine-readable output (PIXOPHER_JSON=1 turns it on everywhere)
+
+$ pxo new pal.pxo --size 4x4 --palette nosuch --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"no built-in palette \"nosuch\"","hint":"use one of default, sweetie16, or none","arg":"palette"}}
+
+$ pxo new pal.pxo --size 4x4 --bg ink --json
+exit 0
+--- stdout
+{"ok":true,"rev":0,"changed":16,"bbox":[0,0,4,4],"warnings":[]}
+
+$ pxo palette list pal.pxo
+exit 0
+--- stdout
+o  #1a1c2c  ink
+p  #5d275d  plum
+r  #b13e53  red
+c  #ef7d57  coral
+y  #ffcd75  yellow
+l  #a7f070  lime
+g  #38b764  green
+t  #257179  teal
+n  #29366f  navy
+b  #3b5dc9  blue
+s  #41a6f6  sky
+i  #73eff7  ice
+w  #f4f4f4  white
+f  #94b0c2  fog
+a  #566c86  ash
+d  #333c57  dusk
+ramp blue   n [b] s i
+ramp gray   o d [a] f w
+ramp green  t [g] l
+ramp warm   p r [c] y
+
+$ pxo use pal.pxo
+exit 0
+--- stdout
+using pal.pxo
+
+$ pxo palette add k #ffcc99 skin --json
+exit 0
+--- stdout
+{"ok":true,"rev":1,"changed":0,"warnings":[]}
+
+$ pxo palette add k #000000 other --json
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"already_exists","message":"palette key \"k\" is taken by \"skin\"","hint":"pick another key","arg":"key"}}
+
+$ pxo palette set skin #ffd0a0
+exit 0
+--- stdout
+ok rev 2  +0px
+
+$ pxo palette rename skin flesh --json
+exit 0
+--- stdout
+{"ok":true,"rev":3,"changed":0,"warnings":[]}
+
+$ pxo ramp add flesh c k y --base k --json
+exit 0
+--- stdout
+{"ok":true,"rev":4,"changed":0,"warnings":[]}
+
+$ pxo px 0,0 flesh 1,0 flesh-1 2,0 flesh+1
+exit 0
+--- stdout
+ok rev 5  +3px  bbox 0,0 3,1
+
+$ pxo palette rm flesh --json
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"in_use","message":"palette entry \"flesh\" is a step of ramp \"flesh\"","hint":"remove the ramp first: ramp rm flesh","arg":"entry"}}
+
+$ pxo ramp rm flesh
+exit 0
+--- stdout
+ok rev 6  +0px
+
+$ pxo palette rm flesh --json
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"in_use","message":"palette entry \"flesh\" is used by 1 pixel","hint":"repaint them with --replace <color>, or erase them first","arg":"entry"}}
+
+$ pxo palette rm flesh --replace coral --json
+exit 0
+--- stdout
+{"ok":true,"rev":7,"changed":1,"bbox":[0,0,1,1],"warnings":[]}
+
+$ pxo undo --json
+exit 0
+--- stdout
+{"ok":true,"rev":8,"changed":1,"bbox":[0,0,1,1],"undone":[{"rev":7,"tx":"t_0007"}],"warnings":[]}
+
+$ pxo redo --json
+exit 0
+--- stdout
+{"ok":true,"rev":9,"changed":1,"bbox":[0,0,1,1],"redone":[{"rev":7,"tx":"t_0007"}],"warnings":[]}
+
+$ pxo palette list --json
+exit 0
+--- stdout
+{"ok":true,"key_width":1,"entries":[{"key":"o","name":"ink","color":"#1a1c2c"},{"key":"p","name":"plum","color":"#5d275d"},{"key":"r","name":"red","color":"#b13e53"},{"key":"c","name":"coral","color":"#ef7d57"},{"key":"y","name":"yellow","color":"#ffcd75"},{"key":"l","name":"lime","color":"#a7f070"},{"key":"g","name":"green","color":"#38b764"},{"key":"t","name":"teal","color":"#257179"},{"key":"n","name":"navy","color":"#29366f"},{"key":"b","name":"blue","color":"#3b5dc9"},{"key":"s","name":"sky","color":"#41a6f6"},{"key":"i","name":"ice","color":"#73eff7"},{"key":"w","name":"white","color":"#f4f4f4"},{"key":"f","name":"fog","color":"#94b0c2"},{"key":"a","name":"ash","color":"#566c86"},{"key":"d","name":"dusk","color":"#333c57"}],"ramps":{"blue":{"steps":["n","b","s","i"],"base":1},"gray":{"steps":["o","d","a","f","w"],"base":2},"green":{"steps":["t","g","l"],"base":1},"warm":{"steps":["p","r","c","y"],"base":2}}}
+
+$ pxo ramp rm nosuch --json
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"unknown_color","message":"no ramp named \"nosuch\"","arg":"name"}}
+
+$ pxo palette --help
+exit 0
+--- stdout
+palette commands
+
+Usage:
+  pixopher palette [flags]
+  pixopher palette [command]
+
+Available Commands:
+  add         Add a palette entry at the end
+  list        List the palette entries (key, color, name) and the ramps
+  rename      Rename a palette entry
+  rm          Remove a palette entry; pixels using it need --replace
+  set         Change a palette entry's color; every pixel using it changes
+
+Flags:
+  -h, --help   help for palette
+
+Global Flags:
+      --json   machine-readable output (PIXOPHER_JSON=1 turns it on everywhere)
+
+Use "pixopher palette [command] --help" for more information about a command.
+
+$ pxo palette rm --help
+exit 0
+--- stdout
+Remove a palette entry; pixels using it need --replace
+
+Arguments:
+  entry  text; entry key or name
+
+Usage:
+  pixopher palette rm <entry> [flags]
+
+Examples:
+  pxo palette rm k
+  pxo palette rm auto_ff0000 --replace red
+
+Flags:
+      --as string        author label (default $PIXOPHER_AUTHOR or cli)
+      --dry-run          report the change without writing anything
+      --expect-rev int   fail with rev_conflict unless the document is at this rev
+  -f, --file string      document to act on (default: $PIXOPHER_FILE, the file set by use, or the only *.pxo here)
+  -h, --help             help for rm
+  -m, --message string   caption for this transaction
+      --replace color    repaint pixels using the entry with this palette color
+
+Global Flags:
+      --json   machine-readable output (PIXOPHER_JSON=1 turns it on everywhere)
+
+$ pxo new sweet.pxo --size 2x2 --palette sweetie16 --bg 0
+exit 0
+--- stdout
+ok rev 0  +4px  bbox 0,0 2,2
+
+$ pxo palette list sweet.pxo --json
+exit 0
+--- stdout
+{"ok":true,"key_width":1,"entries":[{"key":"0","name":"ink","color":"#1a1c2c"},{"key":"1","name":"plum","color":"#5d275d"},{"key":"2","name":"red","color":"#b13e53"},{"key":"3","name":"coral","color":"#ef7d57"},{"key":"4","name":"yellow","color":"#ffcd75"},{"key":"5","name":"lime","color":"#a7f070"},{"key":"6","name":"green","color":"#38b764"},{"key":"7","name":"teal","color":"#257179"},{"key":"8","name":"navy","color":"#29366f"},{"key":"9","name":"blue","color":"#3b5dc9"},{"key":"a","name":"sky","color":"#41a6f6"},{"key":"b","name":"ice","color":"#73eff7"},{"key":"c","name":"white","color":"#f4f4f4"},{"key":"d","name":"fog","color":"#94b0c2"},{"key":"e","name":"ash","color":"#566c86"},{"key":"f","name":"dusk","color":"#333c57"}],"ramps":{"blue":{"steps":["8","9","a","b"],"base":1},"gray":{"steps":["0","f","e","d","c"],"base":2},"green":{"steps":["7","6","5"],"base":1},"warm":{"steps":["1","2","3","4"],"base":2}}}
 

@@ -1,0 +1,22 @@
+{"key_width":1,"entries":[{"key":"o","name":"ink","color":"#1a1c2c"},{"key":"p","name":"plum","color":"#5d275d"},{"key":"r","name":"red","color":"#b13e53"},{"key":"c","name":"coral","color":"#ef7d57"},{"key":"y","name":"yellow","color":"#ffcd75"},{"key":"l","name":"lime","color":"#a7f070"},{"key":"g","name":"green","color":"#38b764"},{"key":"t","name":"teal","color":"#257179"},{"key":"n","name":"navy","color":"#29366f"},{"key":"b","name":"blue","color":"#3b5dc9"},{"key":"s","name":"sky","color":"#41a6f6"},{"key":"i","name":"ice","color":"#73eff7"},{"key":"w","name":"white","color":"#f4f4f4"},{"key":"f","name":"fog","color":"#94b0c2"},{"key":"a","name":"ash","color":"#566c86"},{"key":"d","name":"dusk","color":"#333c57"}],"ramps":{"blue":{"steps":["n","b","s","i"],"base":1},"gray":{"steps":["o","d","a","f","w"],"base":2},"green":{"steps":["t","g","l"],"base":1},"warm":{"steps":["p","r","c","y"],"base":2}}}
+---
+o  #1a1c2c  ink
+p  #5d275d  plum
+r  #b13e53  red
+c  #ef7d57  coral
+y  #ffcd75  yellow
+l  #a7f070  lime
+g  #38b764  green
+t  #257179  teal
+n  #29366f  navy
+b  #3b5dc9  blue
+s  #41a6f6  sky
+i  #73eff7  ice
+w  #f4f4f4  white
+f  #94b0c2  fog
+a  #566c86  ash
+d  #333c57  dusk
+ramp blue   n [b] s i
+ramp gray   o d [a] f w
+ramp green  t [g] l
+ramp warm   p r [c] y

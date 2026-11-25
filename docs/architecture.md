@@ -127,7 +127,8 @@ Dependency direction (no cycles): `doc` ← `color`, `raster` ← `fx` ← `ops`
 `script`, `history` ← `engine` ← (`cli`, `server`, `mcp`, `tui`). `history`
 uses `ops` and `pxofile` (for the log entries). `render`, `export`,
 `lint` and `importer` depend on `doc` and `color` only. `pxofile` depends on
-`doc` and `color`. Every package may import `errs`.
+`doc` and `color`. `palettes` (the embedded built-ins) depends on `doc` and
+`pxofile`, and `ops` imports it (D53). Every package may import `errs`.
 
 ## The op registry
 

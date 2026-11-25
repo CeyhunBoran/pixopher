@@ -139,7 +139,8 @@ value Go's `strconv.ParseBool` reads as true counts (`1`, `t`, `true`,
 `unknown_frame`, `unknown_region`, `unknown_anchor`, `unknown_part`,
 `layer_locked`, `rev_conflict`, `locked`, `undo_conflict`, `no_history`, `too_large`,
 `palette_full`, `grid_mismatch`, `script_error` (wraps another error and adds
-`line`), `io`, `unsupported_format`, `server_unavailable`.
+`line`), `io`, `unsupported_format`, `server_unavailable`, `already_exists`
+(a key or name is taken), `in_use` (removing something still used, D53).
 
 Codes are stable. They are part of the public API, and adding one is a minor
 change. Argument defaults are public API too: logged lines leave defaults
@@ -152,7 +153,7 @@ Groups and commands. `[M#]` is the roadmap milestone that delivers the command.
 ### Document
 
 ```
-pxo new <file> [--size 32x32] [--bg <color>] [--force]   [done]  (--palette <name|file|none> comes with the built-in palettes, D46)
+pxo new <file> [--size 32x32] [--bg <color>] [--palette default|sweetie16|none] [--force]   [done]  (palette files come with palette load, D53)
 pxo info                              size, rev, palette size, layers, frames, regions, anchors   [done]
 pxo use <file>                        set current file for this directory   [done]
 pxo resize <w,h> [--anchor tl|c|...]  change canvas size, keeping pixels   [M6]
@@ -187,7 +188,8 @@ anchors  cork 8,1
 ### Palette, ramps, variants
 
 See [palettes.md](palettes.md). The `palette`, `ramp`, `variant` and
-`recolor` groups.
+`recolor` groups. `palette list/add/set/rename/rm` and `ramp add/rm` are
+**[done]** (D53).
 
 ### Drawing [M1–M2]
 

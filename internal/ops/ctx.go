@@ -44,18 +44,26 @@ func (c *Ctx) Set(x, y int, v doc.Index) bool {
 	if !c.In(x, y) {
 		return false
 	}
-	before := c.Doc.Pixel(c.Layer, c.Frame, x, y)
-	k := pixKey{c.Layer, c.Frame, x, y}
+	c.SetAt(c.Layer, c.Frame, x, y, v)
+	return true
+}
+
+// SetAt writes v at (x, y) of the cel (layer, frame) and records the change.
+// It is for ops that act on every cel, such as palette rm. The point must be
+// on the canvas, and the cel must not be linked: a write through a link
+// would be recorded on the wrong cel.
+func (c *Ctx) SetAt(layer, frame, x, y int, v doc.Index) {
+	before := c.Doc.Pixel(layer, frame, x, y)
+	k := pixKey{layer, frame, x, y}
 	if i, ok := c.index[k]; ok {
 		c.pixels[i].After = v
 	} else if before != v {
 		c.index[k] = len(c.pixels)
 		c.pixels = append(c.pixels, doc.PixelDelta{
-			Layer: c.Layer, Frame: c.Frame, X: x, Y: y, Before: before, After: v,
+			Layer: layer, Frame: frame, X: x, Y: y, Before: before, After: v,
 		})
 	}
-	c.Doc.SetPixel(c.Layer, c.Frame, x, y, v)
-	return true
+	c.Doc.SetPixel(layer, frame, x, y, v)
 }
 
 // Finish returns the step's change: the pixels whose value differs from the

@@ -5,6 +5,7 @@ import (
 
 	"github.com/CeyhunBoran/pixopher/internal/doc"
 	"github.com/CeyhunBoran/pixopher/internal/errs"
+	"github.com/CeyhunBoran/pixopher/palettes"
 )
 
 // Ext is the document file extension, matched case-sensitively.
@@ -19,20 +20,38 @@ func (newOp) Spec() Spec {
 			{Name: "file", Kind: KindString, Required: true, Help: "path of the new document, ending in .pxo"},
 			{Name: "size", Kind: KindSize, Flag: true, Default: "32x32", Help: "canvas size, up to 1024x1024"},
 			{Name: "bg", Kind: KindColor, Flag: true, Help: "fill the canvas with this color (a #hex color adds an entry)"},
+			{Name: "palette", Kind: KindString, Flag: true, Default: palettes.Default, Help: "built-in palette to start with (" + strings.Join(palettes.Names(), ", ") + "), or none for an empty one"},
 		},
-		Examples: []string{"new hero.pxo", "new icon.pxo --size 16x16 --bg '#1a1c2c'"},
+		Examples: []string{"new hero.pxo", "new icon.pxo --size 16x16 --bg ink", "new blank.pxo --palette none --bg '#1a1c2c'"},
 	}
 }
 
-// Create returns the empty document: one layer, one frame and a palette
-// holding only ".". Built-in palettes come with --palette (D46).
+// PaletteNone is the --palette value for a palette holding only ".".
+const PaletteNone = "none"
+
+// Create returns the empty document: one layer, one frame, and the palette
+// and ramps of the built-in palette named by --palette, or only "." for
+// none (D46, D53).
 func (newOp) Create(args Args) (*doc.Doc, error) {
 	if f := args.String("file"); !strings.HasSuffix(f, Ext) || f == Ext {
 		return nil, errs.New(errs.Usage, "document %q must end in %s", f, Ext).
 			WithHint("use a name like hero%s", Ext).WithArg("file")
 	}
+	var pal *doc.Doc
+	if name := args.String("palette"); name != PaletteNone {
+		var ok bool
+		if pal, ok = palettes.Load(name); !ok {
+			return nil, errs.New(errs.Usage, "no built-in palette %q", name).
+				WithHint("use one of %s, or %s", strings.Join(palettes.Names(), ", "), PaletteNone).WithArg("palette")
+		}
+	}
 	s := args.Size("size")
-	return doc.New(s.W, s.H)
+	d, err := doc.New(s.W, s.H)
+	if err != nil || pal == nil {
+		return d, err
+	}
+	d.Palette, d.Ramps = pal.Palette, pal.Ramps
+	return d, nil
 }
 
 // Apply paints the background, if one is given.

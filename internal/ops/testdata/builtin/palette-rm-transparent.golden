@@ -1,0 +1,66 @@
+$ ramp rm glass
+$ palette rm G --replace .
+changed 3  bbox 7,1 2,4  meta true
+--- document
+pixopher = 1
+size = [16, 16]
+rev = 12
+key_width = 1
+
+[meta]
+title = "potion"
+created = 2026-11-23T18:00:00Z
+
+[palette]
+"." = ["#00000000", "transparent"]
+o = ["#1a1c2c", "ink"]
+g = ["#38b764", "glass"]
+r = ["#b13e53", "liquid_dark"]
+R = ["#ef7d57", "liquid"]
+w = ["#f4f4f4", "shine"]
+
+[ramps]
+liquid = ["r", "R", "w"]
+
+[symmetry]
+mode = "x"
+
+[[layers]]
+name = "body"
+
+[[layers]]
+name = "shine"
+
+[[frames]]
+duration_ms = 120
+
+[[tags]]
+name = "idle"
+from = 0
+to = 0
+
+[regions]
+flask = [3, 4, 10, 11]
+neck = [6, 1, 4, 3]
+
+[anchors]
+cork = [8, 1]
+
+[parts.bubble]
+grid = '''
+.w.
+w.w
+.w.
+'''
+
+[[cels]]
+layer = "body"
+frame = 0
+origin = [4, 0]
+grid = '''
+..oooo..
+..o.go..
+..oooo..
+.o....o.
+o.g..g.o
+'''
