@@ -561,14 +561,32 @@ func TestCreate(t *testing.T) {
 
 	// A directory is never replaced, and op errors write nothing.
 	o.Force = true
-	if _, err := b.Create(dir, newCall(t, "x.pxo"), o); errs.CodeOf(err) != errs.FileExists {
-		t.Fatalf("directory: %v", err)
+	sub := filepath.Join(dir, "sub.pxo")
+	if err := os.Mkdir(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Create(sub, newCall(t, "x.pxo"), o); errs.CodeOf(err) != errs.FileExists || exists(LockPath(sub)) {
+		t.Fatalf("directory: %v, lock file %t", err, exists(LockPath(sub)))
 	}
 	other := filepath.Join(dir, "other.pxo")
 	if _, err := b.Create(other, newCall(t, other, "--bg", "nosuch"), opts()); errs.CodeOf(err) != errs.UnknownColor || exists(other) {
 		t.Fatalf("bad --bg: %v, exists %t", err, exists(other))
 	}
-	if _, err := b.Create(filepath.Join(dir, "missing", "a.pxo"), newCall(t, "a.pxo"), opts()); errs.CodeOf(err) != errs.IO {
-		t.Fatalf("missing directory: %v", err)
+	// A missing directory fails the same way with and without --dry-run.
+	missing := filepath.Join(dir, "missing", "a.pxo")
+	for _, dry := range []bool{false, true} {
+		o := opts()
+		o.DryRun = dry
+		if _, err := b.Create(missing, newCall(t, "a.pxo"), o); errs.CodeOf(err) != errs.IO {
+			t.Fatalf("missing directory, dry %t: %v", dry, err)
+		}
+	}
+	// Without --force, an existing document leaves no lock file either.
+	plain := filepath.Join(t.TempDir(), "plain.pxo")
+	if err := os.WriteFile(plain, read(t, path), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Create(plain, newCall(t, plain), opts()); errs.CodeOf(err) != errs.FileExists || exists(LockPath(plain)) {
+		t.Fatalf("existing: %v, lock file %t", err, exists(LockPath(plain)))
 	}
 }

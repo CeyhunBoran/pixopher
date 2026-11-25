@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/CeyhunBoran/pixopher/internal/doc"
@@ -212,20 +213,24 @@ func (b Direct) Create(path string, call ops.Call, opt Options) (Result, error) 
 	if err != nil {
 		return Result{}, err
 	}
-	if !opt.DryRun {
-		// The lock keeps two writers from creating or replacing the same
-		// document at once; the existence check happens under it.
-		l, err := acquire(LockPath(path), opt.LockTimeout)
-		if err != nil {
-			return Result{}, err
-		}
-		defer func() { _ = l.release() }()
-	}
+	// Checked before the lock, so a failure leaves no lock file behind and a
+	// dry run fails the same way a real run would.
 	if err := checkCreate(path, opt.Force); err != nil {
 		return Result{}, err
 	}
 	if opt.DryRun {
 		return res, nil
+	}
+	// The lock keeps two writers from creating or replacing the same
+	// document at once. The existence check runs again under it, because
+	// another writer may have created the file in between.
+	l, err := acquire(LockPath(path), opt.LockTimeout)
+	if err != nil {
+		return Result{}, err
+	}
+	defer func() { _ = l.release() }()
+	if err := checkCreate(path, opt.Force); err != nil {
+		return Result{}, err
 	}
 	if err := writeAtomic(path, data); err != nil {
 		return Result{}, err
@@ -236,9 +241,16 @@ func (b Direct) Create(path string, call ops.Call, opt Options) (Result, error) 
 	return res, nil
 }
 
-// checkCreate fails with file_exists when path exists, unless force is set
-// and path is not a directory.
+// checkCreate fails with io when the directory for path is missing, and
+// with file_exists when path exists, unless force is set and path is not a
+// directory.
 func checkCreate(path string, force bool) error {
+	dir := filepath.Dir(path)
+	if st, err := os.Stat(dir); err != nil {
+		return ioErr(err)
+	} else if !st.IsDir() {
+		return errs.New(errs.IO, "%s is not a directory", dir)
+	}
 	st, err := os.Stat(path)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
