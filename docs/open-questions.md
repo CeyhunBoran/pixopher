@@ -24,6 +24,9 @@ Questions that are not decided yet. When one is resolved, move the answer to
   MIT-compatible? Verify before M9.
 - **kitty graphics inside tmux**: is passthrough detection reliable enough, or
   should tmux sessions default to halfblock?
+- **`show --composite`**: palette keys can't show opacity or blending.
+  Should a blended pixel print the key of the closest palette color, the
+  top opaque layer's key, or a marker? Decide in M4 (D55).
 - **Caption font for timelapse**: ship a small free bitmap font. Which one,
   and what license?
 
