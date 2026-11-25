@@ -12,6 +12,13 @@ Questions that are not decided yet. When one is resolved, move the answer to
 
 ## Engine
 
+- **Forced header restores and reused palette indices**: `undo --force` and
+  `redo --force` restore a whole header snapshot (D31). If another author
+  has since added an entry at the same index (A's auto entry undone, then
+  B's auto entry lands at that index), B's pixels silently take A's color.
+  The result still validates, so D49's check doesn't catch it. Should a
+  forced restore merge palettes, or refuse when an index changes meaning?
+
 - **Windows**: are locking and atomic rename reliable enough? Should the
   Windows server use named pipes or localhost TCP + token?
 - **Performance budget for 1024x1024**: is parse+serialize per command
