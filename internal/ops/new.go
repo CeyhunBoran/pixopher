@@ -20,7 +20,7 @@ func (newOp) Spec() Spec {
 			{Name: "file", Kind: KindString, Required: true, Help: "path of the new document, ending in .pxo"},
 			{Name: "size", Kind: KindSize, Flag: true, Default: "32x32", Help: "canvas size, up to 1024x1024"},
 			{Name: "bg", Kind: KindColor, Flag: true, Help: "fill the canvas with this color (a #hex color adds an entry)"},
-			{Name: "palette", Kind: KindString, Flag: true, Default: palettes.Default, Help: "built-in palette to start with (" + strings.Join(palettes.Names(), ", ") + "), or none for an empty one"},
+			{Name: "palette", Kind: KindString, Flag: true, Default: palettes.Default, Help: "built-in palette to start with (" + paletteChoices() + " for an empty palette)"},
 		},
 		Examples: []string{"new hero.pxo", "new icon.pxo --size 16x16 --bg ink", "new blank.pxo --palette none --bg '#1a1c2c'"},
 	}
@@ -28,6 +28,13 @@ func (newOp) Spec() Spec {
 
 // PaletteNone is the --palette value for a palette holding only ".".
 const PaletteNone = "none"
+
+// paletteChoices lists the --palette values: the built-in names, then none
+// ("default or none", "a, b or none").
+func paletteChoices() string {
+	names := append(palettes.Names(), PaletteNone)
+	return strings.Join(names[:len(names)-1], ", ") + " or " + PaletteNone
+}
 
 // Create returns the empty document: one layer, one frame, and the palette
 // and ramps of the built-in palette named by --palette, or only "." for
@@ -42,7 +49,7 @@ func (newOp) Create(args Args) (*doc.Doc, error) {
 		var ok bool
 		if pal, ok = palettes.Load(name); !ok {
 			return nil, errs.New(errs.Usage, "no built-in palette %q", name).
-				WithHint("use one of %s, or %s", strings.Join(palettes.Names(), ", "), PaletteNone).WithArg("palette")
+				WithHint("use %s", paletteChoices()).WithArg("palette")
 		}
 	}
 	s := args.Size("size")

@@ -6,10 +6,9 @@ its suggested ramps. They are embedded in the binary, and `pxo new
 
 | Name | Colors | Source |
 | --- | --- | --- |
-| `default` | 16 | The Sweetie 16 colors with one-letter keys that recall their names (`o` ink, `r` red, `w` white, ...). New documents start with it. |
-| `sweetie16` | 16 | Sweetie 16 by GrafxKid, <http://grafxkid.tumblr.com/palettes>, listed at <https://lospec.com/palette-list/sweetie-16>. Keys `0`–`f` follow the published order. |
+| `default` | 16 | The colors of Sweetie 16 by GrafxKid, <http://grafxkid.tumblr.com/palettes>, listed at <https://lospec.com/palette-list/sweetie-16>, with one-letter keys that recall their names (`o` ink, `r` red, `w` white, ...). New documents start with it. |
 
-Both have the ramps `warm` (plum to yellow, base coral), `green`, `blue`
+It has the ramps `warm` (plum to yellow, base coral), `green`, `blue`
 and `gray` (ink to white).
 
 ## Attribution

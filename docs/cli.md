@@ -153,7 +153,7 @@ Groups and commands. `[M#]` is the roadmap milestone that delivers the command.
 ### Document
 
 ```
-pxo new <file> [--size 32x32] [--bg <color>] [--palette default|sweetie16|none] [--force]   [done]  (palette files come with palette load, D53)
+pxo new <file> [--size 32x32] [--bg <color>] [--palette default|none] [--force]   [done]  (palette files come with palette load, D53)
 pxo info                              size, rev, palette size, layers, frames, regions, anchors   [done]
 pxo use <file>                        set current file for this directory   [done]
 pxo resize <w,h> [--anchor tl|c|...]  change canvas size, keeping pixels   [M6]

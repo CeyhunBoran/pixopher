@@ -46,7 +46,7 @@ pxo palette add k '#ffcc99' skin       # key, color, name   [done]
 pxo palette set skin '#ffd0a0'         # change a color (all pixels using it change)   [done]
 pxo palette rename skin flesh          # [done]
 pxo palette rm k [--replace o]         # remove; pixels using it are remapped or the command fails   [done]
-pxo palette load sweetie16             # built-in or file (.hex .gpl .pal .ase .png strip)
+pxo palette load endesga32             # built-in or file (.hex .gpl .pal .ase .png strip)
 pxo palette save my.gpl
 pxo palette tidy                       # merge duplicates, name auto entries, drop unused (with --unused)
 pxo ramp add skin S s t [--base s]     # [done]
@@ -117,20 +117,18 @@ pxo recolor R=o --region flask      # remap a single key inside a region
 
 ## Built-in palette library [wip]
 
-`default` and `sweetie16` are **[done]** (D53). Both are the 16 colors of
-Sweetie 16 by GrafxKid, with the ramps `warm`, `green`, `blue` and `gray`.
-`sweetie16` uses the keys `0`–`f` in published order, and `default` uses keys
-that recall the names (`o` ink, `r` red, `c` coral, `y` yellow, `l` lime,
-`g` green, `t` teal, `n` navy, `b` blue, `s` sky, `i` ice, `w` white, `f`
-fog, `a` ash, `d` dusk, `p` plum). `pxo new` starts from `default`;
-`--palette sweetie16` picks the other one and `--palette none` an empty
+`default` is **[done]** (D53): the 16 colors of Sweetie 16 by GrafxKid, with
+the ramps `warm`, `green`, `blue` and `gray`, and keys that recall the names
+(`o` ink, `r` red, `c` coral, `y` yellow, `l` lime, `g` green, `t` teal, `n`
+navy, `b` blue, `s` sky, `i` ice, `w` white, `f` fog, `a` ash, `d` dusk, `p`
+plum). `pxo new` starts from `default`; `--palette none` gives an empty
 palette.
 
 The rest is **[planned]**: ship a set of well-known, freely licensed palettes embedded in the binary.
 Only palettes whose authors allow redistribution get included, and the
 attribution goes in `palettes/README.md`. Candidates:
 
-- `sweetie16`, `endesga32`, `endesga64`, `resurrect64`, `apollo`, `na16`,
+- `endesga32`, `endesga64`, `resurrect64`, `apollo`, `na16`,
   `db16`, `db32`, `pico8`, `gameboy` (4-shade green), `1bit`.
 - Each built-in palette ships with **suggested ramps**, so shading works
   right away.

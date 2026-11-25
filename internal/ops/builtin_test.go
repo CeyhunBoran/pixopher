@@ -338,10 +338,6 @@ func TestNewCreate(t *testing.T) {
 	if err := cr.Apply(NewCtx(d, 0, 0), c.Args); errs.CodeOf(err) != errs.UnknownColor {
 		t.Fatalf("--bg ink: %v", err)
 	}
-	c, _ = call(t, "new hero.pxo --palette sweetie16")
-	if d, err := cr.Create(c.Args); err != nil || d.Palette.Entries[1].Key != "0" || d.Palette.Entries[1].Name != "ink" {
-		t.Fatalf("--palette sweetie16: %v", err)
-	}
 	for line, code := range map[string]errs.Code{
 		"new hero":                   errs.Usage,
 		"new .pxo":                   errs.Usage,

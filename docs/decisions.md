@@ -671,10 +671,10 @@ or an `Observer`.
   per ramp, the base step in brackets.
 - **Built-ins**: the top-level `palettes` package embeds one `.pxo` file per
   palette (palette and ramps only) and depends on `doc` and `pxofile`;
-  `ops` imports it. `sweetie16` is Sweetie 16 by GrafxKid with keys `0`–`f`
-  in published order. `default` has the same colors, names and ramps with
-  keys that recall the names (`o` ink, `r` red, `w` white, ...). Both have
-  the ramps `warm`, `green`, `blue` and `gray`; entry and ramp names
+  `ops` imports it. `default` is the only built-in for now (the library
+  comes in M10): the Sweetie 16 colors by GrafxKid with keys that recall
+  the names (`o` ink, `r` red, `w` white, ...) and the ramps `warm`,
+  `green`, `blue` and `gray`; entry and ramp names
   `green` and `blue` are shared (D27), so `green+1` is lime.
 - **`new --palette <name|none>`**: default `default` (D46, a public default
   under D42), `none` for only `.`. An unknown name is `usage`, arg

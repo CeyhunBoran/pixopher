@@ -1,7 +1,6 @@
 package palettes
 
 import (
-	"reflect"
 	"slices"
 	"testing"
 
@@ -9,24 +8,9 @@ import (
 )
 
 func TestBuiltins(t *testing.T) {
-	if got := Names(); !slices.Equal(got, []string{"default", "sweetie16"}) {
+	if got := Names(); !slices.Equal(got, []string{"default"}) {
 		t.Fatalf("names %v", got)
 	}
-	// Everything but the keys: colors, names and ramps by index.
-	type shape struct {
-		Colors []doc.RGBA
-		Names  []string
-		Ramps  map[string]doc.Ramp
-	}
-	shapeOf := func(d *doc.Doc) shape {
-		s := shape{Ramps: d.Ramps}
-		for _, e := range d.Palette.Entries {
-			s.Colors = append(s.Colors, e.Color)
-			s.Names = append(s.Names, e.Name)
-		}
-		return s
-	}
-	var first *shape
 	for _, name := range Names() {
 		d, ok := Load(name)
 		if !ok {
@@ -44,12 +28,6 @@ func TestBuiltins(t *testing.T) {
 		}
 		if d.Palette.Len() != 17 || len(d.Ramps) != 4 {
 			t.Fatalf("%s: %d entries, %d ramps", name, d.Palette.Len(), len(d.Ramps))
-		}
-		// default is sweetie16 with other keys: same colors, names and ramps.
-		if s := shapeOf(d); first == nil {
-			first = &s
-		} else if !reflect.DeepEqual(*first, s) {
-			t.Fatalf("%s: differs from %s in more than its keys", name, Names()[0])
 		}
 	}
 	if _, ok := Load("nosuch"); ok {

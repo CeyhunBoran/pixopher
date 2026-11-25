@@ -44,9 +44,9 @@ Questions that are not decided yet. When one is resolved, move the answer to
   `low-contrast-ramp`, and the step-pattern tolerance for `jaggy-line`. Tune
   them with real sprites.
 - **Built-in palettes**: confirm the redistribution license for every
-  candidate before shipping. `sweetie16` (and `default`, which uses its
-  colors) ships with credit to GrafxKid in `palettes/README.md`, but its
-  lospec page states no license; confirm with the author's own terms.
+  candidate before shipping. `default` uses the Sweetie 16 colors with
+  credit to GrafxKid in `palettes/README.md`, but their lospec page states
+  no license; confirm with the author's own terms.
 
 ## Product
 

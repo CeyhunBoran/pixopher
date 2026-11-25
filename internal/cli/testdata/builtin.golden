@@ -221,7 +221,7 @@ Flags:
       --dry-run          report the change without writing anything
       --force            replace an existing document and remove its history
   -h, --help             help for new
-      --palette string   built-in palette to start with (default, sweetie16), or none for an empty one (default "default")
+      --palette string   built-in palette to start with (default or none for an empty palette) (default "default")
       --size size        canvas size, up to 1024x1024 (default 32x32)
 
 Global Flags:
@@ -249,7 +249,7 @@ Global Flags:
 $ pxo new pal.pxo --size 4x4 --palette nosuch --json
 exit 1
 --- stdout
-{"ok":false,"error":{"code":"usage","message":"no built-in palette \"nosuch\"","hint":"use one of default, sweetie16, or none","arg":"palette"}}
+{"ok":false,"error":{"code":"usage","message":"no built-in palette \"nosuch\"","hint":"use default or none","arg":"palette"}}
 
 $ pxo new pal.pxo --size 4x4 --bg ink --json
 exit 0
@@ -405,14 +405,4 @@ Flags:
 
 Global Flags:
       --json   machine-readable output (PIXOPHER_JSON=1 turns it on everywhere)
-
-$ pxo new sweet.pxo --size 2x2 --palette sweetie16 --bg 0
-exit 0
---- stdout
-ok rev 0  +4px  bbox 0,0 2,2
-
-$ pxo palette list sweet.pxo --json
-exit 0
---- stdout
-{"ok":true,"key_width":1,"entries":[{"key":"0","name":"ink","color":"#1a1c2c"},{"key":"1","name":"plum","color":"#5d275d"},{"key":"2","name":"red","color":"#b13e53"},{"key":"3","name":"coral","color":"#ef7d57"},{"key":"4","name":"yellow","color":"#ffcd75"},{"key":"5","name":"lime","color":"#a7f070"},{"key":"6","name":"green","color":"#38b764"},{"key":"7","name":"teal","color":"#257179"},{"key":"8","name":"navy","color":"#29366f"},{"key":"9","name":"blue","color":"#3b5dc9"},{"key":"a","name":"sky","color":"#41a6f6"},{"key":"b","name":"ice","color":"#73eff7"},{"key":"c","name":"white","color":"#f4f4f4"},{"key":"d","name":"fog","color":"#94b0c2"},{"key":"e","name":"ash","color":"#566c86"},{"key":"f","name":"dusk","color":"#333c57"}],"ramps":{"blue":{"steps":["8","9","a","b"],"base":1},"gray":{"steps":["0","f","e","d","c"],"base":2},"green":{"steps":["7","6","5"],"base":1},"warm":{"steps":["1","2","3","4"],"base":2}}}
 

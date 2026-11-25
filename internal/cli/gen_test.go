@@ -274,8 +274,6 @@ func TestBuiltinTranscript(t *testing.T) {
 	s.sh("ramp rm nosuch --json")
 	s.sh("palette --help")
 	s.sh("palette rm --help")
-	s.sh("new sweet.pxo --size 2x2 --palette sweetie16 --bg 0")
-	s.sh("palette list sweet.pxo --json")
 
 	golden.Check(t, filepath.Join(testdata, "builtin.golden"), []byte(s.out.String()))
 	for _, f := range []string{"hero.pxo", "hero.pxo.log", "pal.pxo", "pal.pxo.log"} {

@@ -64,7 +64,7 @@ Agents can write code, but drawing pixel art with today's tools is painful:
 pixopher watch hero.pxo
 
 # pane 2 (agent)
-pxo new hero.pxo --size 32x32 --palette sweetie16
+pxo new hero.pxo --size 32x32 --palette none
 pxo ramp gen skin '#e0a070' --steps 3 --keys "S s t" -m "skin ramp"
 pxo palette add o '#1a1c2c' ink
 pxo run hero.pxo -m "block in silhouette" <<'EOF'
