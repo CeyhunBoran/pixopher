@@ -161,11 +161,12 @@ pxo clear [color]                     clear target cel, or fill it with color   
 pxo migrate                           upgrade old format versions   [later]
 ```
 
-`info --json` (D52):
+`info --json` (D52), wrapped here for reading (the output is one line):
 
 ```json
 {"ok": true, "rev": 12, "size": [16, 16], "key_width": 1, "palette": 6,
- "layers": [{"name": "body", "visible": true, "locked": false, "opacity": 255, "blend": "normal"}],
+ "layers": [{"name": "body", "visible": true, "locked": false, "opacity": 255, "blend": "normal"},
+            {"name": "shine", "visible": false, "locked": false, "opacity": 255, "blend": "normal"}],
  "frames": [{"duration_ms": 120}], "regions": {"flask": [3, 4, 10, 11]}, "anchors": {"cork": [8, 1]}}
 ```
 
