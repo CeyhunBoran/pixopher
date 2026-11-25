@@ -90,7 +90,7 @@ On error, with `--json`, the error envelope goes to **stdout** and nothing
 goes to stderr:
 
 ```json
-{"ok": false, "error": {"code": "out_of_bounds", "message": "x=40 is outside the canvas", "hint": "canvas is 32x32; valid x is 0..31", "arg": "x"}}
+{"ok": false, "error": {"code": "out_of_bounds", "message": "x=40 is outside the canvas", "hint": "canvas is 32x32; valid x is 0..31", "arg": "at"}}
 ```
 
 `hint` and `arg` are omitted when empty. Without `--json`, stderr gets
