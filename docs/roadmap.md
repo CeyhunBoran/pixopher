@@ -130,7 +130,7 @@ matches its golden file.
 
 ## M8: Agent integration → release 0.4
 
-- [ ] `schema --json` from the registry, plus the engine commands `undo`, `redo` and `log`, which are not ops (D50)
+- [ ] `schema --json` from the registry, plus the engine commands `undo`, `redo`, `log` and `export`, which are not ops (D50, D58)
 - [ ] `guide` and topics, `guide --install`, craft notes; the guide covers `undo`, `redo` and `log` too (D50)
 - [ ] `mcp` stdio server with the tools and resources in [agent-workflow.md](agent-workflow.md#mcp-server), `--root` sandboxing
 - [ ] MCP `look` returns inline image content

@@ -362,7 +362,7 @@ pxo mcp [--root dir]                                        [M8]
 ### Import and export [M1, M4, M9]
 
 ```
-pxo export <out.(png|svg|gif|jpg|webp|ico|json)> [--scale 4] [--frame n|--tag idle|--all-frames]
+pxo export <out.(png|svg|gif|jpg|webp|ico|json)> [--scale 4] [--rgba] [--frame n|--tag idle|--all-frames]
            [--layer L|--composite] [--variant v|--variants all] [--sheet grid|row|col --cols 8 --atlas out.json]
            [--bg color] [--quality 95] [--sizes 16,32,48]
 pxo export --timelapse out.gif [--fps 12] [--from rev]                        [M7]
