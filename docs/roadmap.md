@@ -42,7 +42,7 @@ already includes layers and frames, but only one of each is exposed.
 - [x] Palette-aware undo: compare palette entries one by one instead of the whole header (D31, D49), so another author's new color doesn't block undo, and settle forced restores that reuse a palette index (D54, [decisions.md](decisions.md))
 - [x] Observation: `show --grid --rulers --legend`, `get`, `stats` (D55)
 - [x] `export` PNG with `--scale`, indexed when ≤256 colors (D58)
-- [ ] `--json` output, error codes and exit codes from [cli.md](cli.md)
+- [x] `--json` output, error codes and exit codes from [cli.md](cli.md) (D59)
 - [ ] Golden tests, round-trip tests, and undo-identity tests for every op
 
 **Done when** an agent can run `new → px/line/rect/fill → show --grid →

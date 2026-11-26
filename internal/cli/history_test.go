@@ -31,6 +31,8 @@ func TestHistoryTranscript(t *testing.T) {
 	s.run("px 2,2 #1a1c2c 3,2 #1a1c2c --json -m 'the eyes'", "px", "2,2", "#1a1c2c", "3,2", "#1a1c2c", "--json", "-m", "the eyes")
 	s.sh("line 0,7 7,7 #38b764 --as bot --json")
 	s.sh("fill 6,0 #29366f --json")
+	s.sh("show --grid --json")
+	s.sh("export hero.png --scale 8 --json")
 	s.sh("log")
 	s.sh("log --limit 2 --json")
 
@@ -56,6 +58,7 @@ func TestHistoryTranscript(t *testing.T) {
 
 	// Undo everything: the document is the fresh one again, apart from rev.
 	s.sh("undo 5 --any --json")
+	s.sh("show --grid")
 	s.sh("log --limit 3")
 
 	golden.Check(t, filepath.Join(testdata, "history.golden"), []byte(s.out.String()))

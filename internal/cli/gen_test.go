@@ -112,8 +112,9 @@ func (s *session) run(line string, args ...string) int {
 	if s.ops != nil {
 		cfg.ops = s.ops
 	}
-	code := execute(BuildInfo{Version: "v0.0.0-test", Commit: "abc1234", Date: "2026-11-25T09:00:00Z"},
-		cfg, args, &stdout, &stderr)
+	info := BuildInfo{Version: "v0.0.0-test", Commit: "abc1234", Date: "2026-11-25T09:00:00Z"}
+	code := execute(info, cfg, args, &stdout, &stderr)
+	checkContract(s.t, line, args, s.env, mutates(info, cfg, args), code, stdout.String(), stderr.String())
 	fmt.Fprintf(&s.out, "$ pxo %s\nexit %d\n", line, code)
 	if stdout.Len() > 0 {
 		fmt.Fprintf(&s.out, "--- stdout\n%s", stdout.String())
@@ -123,6 +124,21 @@ func (s *session) run(line string, args ...string) int {
 	}
 	s.out.WriteString("\n")
 	return code
+}
+
+// mutates reports whether args run a command that changes a document: an
+// op with Mutates, undo or redo.
+func mutates(info BuildInfo, cfg config, args []string) bool {
+	cmd, _, err := newRoot(info, &state{cfg: cfg}).Find(args)
+	if err != nil {
+		return false
+	}
+	name := strings.TrimPrefix(cmd.CommandPath(), "pixopher ")
+	if name == "undo" || name == "redo" {
+		return true
+	}
+	op, ok := cfg.ops.Lookup(name)
+	return ok && op.Spec().Mutates
 }
 
 // sh runs a command line split on spaces; arguments with spaces go through
@@ -173,6 +189,9 @@ func TestTranscript(t *testing.T) {
 	s.sh("nope --json")
 	s.sh("nope")
 	s.sh("version --bogus --json")
+	s.sh("version extra --json")
+	s.sh("use --json")
+	s.sh("use a.pxo b.pxo")
 
 	// File resolution: PIXOPHER_FILE, then `use`, then the only *.pxo.
 	writeDoc(t, "other.pxo")

@@ -879,3 +879,28 @@ gigabytes.
 *Consequences*: the bytes depend on Go's `image/png` encoder, which is
 pinned by the toolchain. The golden PNGs change when it does. M4 defines
 blend modes and replaces the warning.
+
+**D59: The output contract is checked on every transcript line** (2026-11-27)
+- **Contract check**: the CLI tests check every command they run against
+  cli.md. They work out from the arguments and `PIXOPHER_JSON` whether the
+  output must be JSON. With `--json`: stdout is exactly one line holding an
+  object, stderr is empty, `ok` matches the exit code, an error has only
+  `code`, `message`, `hint`, `arg` and `details`, with a known code and the
+  exit code that code maps to, and a mutating success has `rev`, `changed`
+  and `warnings`, `bbox` only when `changed` > 0, and `dry_run` only with
+  `--dry-run`. Without it, an error prints only `error[<code>]: ...` and an
+  optional `hint:` line on stderr. A test also keeps the error code list and
+  the exit code table in cli.md equal to `internal/errs`.
+- **Help and completion**: `help`, `--help` and `completion` print text even
+  with `--json`. Help is for people; `schema --json` (M8) is the machine
+  form. Completion's output is a shell script.
+- **Plain commands**: `use` and `version` check their positionals like
+  generated commands do: `missing argument <file>` with `arg`, or
+  `unexpected argument "x"`, instead of cobra's wording.
+- **Write errors**: a failed atomic write (a document or an export) is `io`
+  with `can't write <path>: <cause>`. It names the target, not the temp
+  file, and states permission and missing-directory causes the same way on
+  every OS.
+*Why*: a golden file records whatever the code printed, so it can't by
+itself show that the output follows the spec. The temp file's random name
+made the same failure print a different message on every run.

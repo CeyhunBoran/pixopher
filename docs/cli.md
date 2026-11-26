@@ -117,22 +117,29 @@ width and palette), so colors are checked against the document, and both
 `invalid_color` and `unknown_color` are domain errors (exit 2), even for a
 typo (D43).
 
+`help`, `--help` and `completion` print text even with `--json`: help is
+for people (agents get `schema` in M8), and completion prints a shell
+script (D59).
+
 `PIXOPHER_JSON` turns `--json` on globally, which is handy for agents. Any
 value Go's `strconv.ParseBool` reads as true counts (`1`, `t`, `true`,
 ...). An explicit `--json=false` still wins.
 
-### Exit codes
+### Exit codes [done]
 
 | Code | Meaning |
 | --- | --- |
 | 0 | success |
-| 1 | usage error (bad flags, unknown command) |
-| 2 | domain error (bounds, color, missing layer, ...) |
-| 3 | conflict (`rev_conflict`, `locked`, `undo_conflict`) |
-| 4 | I/O error |
-| 5 | lint findings at or above `--fail-on` severity |
+| 1 | usage error (bad flags, unknown command): `usage` |
+| 2 | domain error (bounds, color, missing layer, ...): every code not listed on another row |
+| 3 | conflict: `rev_conflict`, `locked`, `undo_conflict` |
+| 4 | I/O error: `io`, `no_file`, `server_unavailable` |
+| 5 | lint findings at or above `--fail-on` severity [M5] |
 
-### Error codes
+The exit code follows from the error code alone, so an agent can branch on
+either one (D29). Exit 5 comes with `lint`.
+
+### Error codes [done]
 
 `usage`, `no_file`, `file_exists`, `parse_error`, `unsupported_version`,
 `out_of_bounds`, `invalid_color`, `unknown_color`, `unknown_layer`,
@@ -141,6 +148,10 @@ value Go's `strconv.ParseBool` reads as true counts (`1`, `t`, `true`,
 `palette_full`, `grid_mismatch`, `script_error` (wraps another error and adds
 `line`), `io`, `unsupported_format`, `server_unavailable`, `already_exists`
 (a key or name is taken), `in_use` (removing something still used, D53).
+
+Every code is defined and mapped to its exit code. A code for a feature
+that doesn't exist yet (`unknown_region`, `script_error`, ...) is first
+returned when that feature lands.
 
 Codes are stable. They are part of the public API, and adding one is a minor
 change. Argument defaults are public API too: logged lines leave defaults

@@ -117,6 +117,22 @@ exit 1
 --- stdout
 {"ok":false,"error":{"code":"usage","message":"unknown flag: --bogus","hint":"see `pixopher version --help`"}}
 
+$ pxo version extra --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"unexpected argument \"extra\"","hint":"see `pixopher version --help`"}}
+
+$ pxo use --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"missing argument <file>","hint":"see `pixopher use --help`","arg":"file"}}
+
+$ pxo use a.pxo b.pxo
+exit 1
+--- stderr
+error[usage]: unexpected argument "b.pxo"
+hint: see `pixopher use --help`
+
 $ pxo mark 1,1 ink --json
 exit 4
 --- stdout

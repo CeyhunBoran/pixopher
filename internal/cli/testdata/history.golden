@@ -28,6 +28,16 @@ exit 0
 --- stdout
 {"ok":true,"rev":4,"changed":40,"bbox":[0,0,8,7],"warnings":[]}
 
+$ pxo show --grid --json
+exit 0
+--- stdout
+{"ok":true,"origin":[0,0],"rows":["dddddddd","daaaaddd","dabbaddd","daaaaddd","daaaaddd","dddddddd","dddddddd","cccccccc"],"legend":{"a":{"name":"auto_ef7d57","color":"#ef7d57"},"b":{"name":"auto_1a1c2c","color":"#1a1c2c"},"c":{"name":"auto_38b764","color":"#38b764"},"d":{"name":"auto_29366f","color":"#29366f"}}}
+
+$ pxo export hero.png --scale 8 --json
+exit 0
+--- stdout
+{"ok":true,"written":["hero.png"],"warnings":[]}
+
 $ pxo log
 exit 0
 --- stdout
@@ -156,6 +166,18 @@ $ pxo undo 5 --any --json
 exit 0
 --- stdout
 {"ok":true,"rev":14,"changed":64,"bbox":[0,0,8,8],"undone":[{"rev":6,"tx":"t_0006"},{"rev":4,"tx":"t_0004"},{"rev":3,"tx":"t_0003"},{"rev":2,"tx":"t_0002"},{"rev":1,"tx":"t_0001"}],"warnings":[]}
+
+$ pxo show --grid
+exit 0
+--- stdout
+........
+........
+........
+........
+........
+........
+........
+........
 
 $ pxo log --limit 3
 exit 0

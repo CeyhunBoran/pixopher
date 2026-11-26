@@ -43,6 +43,18 @@ const (
 	InUse              Code = "in_use"         // removing something still used or referenced (D53)
 )
 
+// All returns every error code, in the order docs/cli.md lists them.
+func All() []Code {
+	return []Code{
+		Usage, NoFile, FileExists, ParseError, UnsupportedVersion,
+		OutOfBounds, InvalidColor, UnknownColor, UnknownLayer,
+		UnknownFrame, UnknownRegion, UnknownAnchor, UnknownPart,
+		LayerLocked, RevConflict, Locked, UndoConflict, NoHistory, TooLarge,
+		PaletteFull, GridMismatch, ScriptError, IO, UnsupportedFormat,
+		ServerUnavailable, AlreadyExists, InUse,
+	}
+}
+
 // Process exit codes from docs/cli.md.
 const (
 	ExitOK       = 0
