@@ -904,3 +904,21 @@ blend modes and replaces the warning.
 *Why*: a golden file records whatever the code printed, so it can't by
 itself show that the output follows the spec. The temp file's random name
 made the same failure print a different message on every run.
+
+**D60: A pixel whose index names another entry has changed** (2026-11-27)
+Found by the undo identity test of every op through the engine.
+- **Rule**: a step's pixel delta is kept when the index changes, and also
+  when the index stays but the step's palette change makes it name another
+  entry (by key). `palette rm g --replace G`, with `G` right after `g`,
+  moves the `g` pixels onto `G` without changing their index, because `G`
+  slides into it. Those deltas used to be dropped, so undo restored entry
+  `g` and left its pixels as `G`. Only the D54 key-matching undo lost them;
+  undo by index would have been correct by accident.
+- **Where**: `NetPixels` decides, from the meta deltas of the changes it
+  combines, for drawing steps (`Ctx.Finish`), for the deltas undo and redo
+  write, and for `changed` and `bbox` across a transaction. Writes that
+  keep the index are recorded so it can.
+- **Output**: those pixels count in `changed` and `bbox`, so `palette rm
+  red --replace blue` on a red pixel now reports it.
+*Why*: a delta says what a pixel showed before and after, and with key
+matching an index alone no longer says that.

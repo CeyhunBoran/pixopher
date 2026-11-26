@@ -398,12 +398,13 @@ func (c Chain) apply(d *doc.Doc, t pxofile.Entry, req Request, start []doc.Entry
 			return ops.Change{}, err
 		}
 	}
+	// Writes that keep the index are recorded too: with a header change
+	// the index may name another entry afterwards, and NetPixels keeps
+	// those and drops the rest (D60).
 	var rec []doc.PixelDelta
 	set := func(layer, frame, x, y int, v doc.Index) {
-		if old := d.Pixel(layer, frame, x, y); old != v {
-			rec = append(rec, doc.PixelDelta{Layer: layer, Frame: frame, X: x, Y: y, Before: old, After: v})
-			d.SetPixel(layer, frame, x, y, v)
-		}
+		rec = append(rec, doc.PixelDelta{Layer: layer, Frame: frame, X: x, Y: y, Before: d.Pixel(layer, frame, x, y), After: v})
+		d.SetPixel(layer, frame, x, y, v)
 	}
 	if plan != nil && plan.whole {
 		d.SetHeader(plan.to)
@@ -417,8 +418,7 @@ func (c Chain) apply(d *doc.Doc, t pxofile.Entry, req Request, start []doc.Entry
 		return ops.Change{}, stuck("would leave an invalid document: %s", err).
 			WithHint("a later transaction depends on it; undo that one first. --force can't override this")
 	}
-	ch := ops.Change{Pixels: ops.NetPixels([]ops.Change{{Pixels: rec}})}
-	ch.BBox = ops.BBox(ch.Pixels)
+	var ch ops.Change
 	if plan != nil {
 		after, err := headerText(d)
 		if err != nil {
@@ -428,6 +428,8 @@ func (c Chain) apply(d *doc.Doc, t pxofile.Entry, req Request, start []doc.Entry
 			ch.Meta = &doc.MetaDelta{Before: head, After: d.Header()}
 		}
 	}
+	ch.Pixels = ops.NetPixels([]ops.Change{{Pixels: rec, Meta: ch.Meta}})
+	ch.BBox = ops.BBox(ch.Pixels)
 	return ch, nil
 }
 

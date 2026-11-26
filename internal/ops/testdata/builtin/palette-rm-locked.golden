@@ -1,5 +1,5 @@
 $ palette rm red --replace blue
-changed 1  bbox 1,0 1,1  meta true
+changed 2  bbox 0,0 2,1  meta true
 --- document
 pixopher = 1
 size = [8, 8]

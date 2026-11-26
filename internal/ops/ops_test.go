@@ -238,3 +238,38 @@ func TestNetPixels(t *testing.T) {
 		t.Fatal("empty bbox")
 	}
 }
+
+// TestNetPixelsPalette: a pixel that keeps its index is still a change when
+// a meta delta makes that index name another entry by the end (D60), even
+// when the palette changed in an earlier change than the pixel's.
+func TestNetPixelsPalette(t *testing.T) {
+	ent := func(keys ...string) []doc.Entry {
+		es := []doc.Entry{{Key: ".", Name: "transparent"}}
+		for _, k := range keys {
+			es = append(es, doc.Entry{Key: k, Name: k, Color: doc.RGBA{A: 0xff}})
+		}
+		return es
+	}
+	meta := func(before, after []doc.Entry) *doc.MetaDelta {
+		b, a := &doc.Doc{}, &doc.Doc{}
+		b.Palette.Entries, a.Palette.Entries = before, after
+		return &doc.MetaDelta{Before: b, After: a}
+	}
+	// a removes entry g (index 1); h slides into index 1. Pixel 0 moved from
+	// g to h, pixel 1 stays transparent, pixel 2 is renumbered from h (2) to
+	// h (1). b then writes pixel 3, which was h (1) after a, with h again.
+	a := Change{Meta: meta(ent("g", "h"), ent("h")), Pixels: []doc.PixelDelta{
+		{X: 0, Before: 1, After: 1}, {X: 1, Before: 0, After: 0}, {X: 2, Before: 2, After: 1},
+	}}
+	b := Change{Pixels: []doc.PixelDelta{{X: 3, Before: 1, After: 1}}}
+	got := NetPixels([]Change{a, b})
+	want := []doc.PixelDelta{{X: 0, Before: 1, After: 1}, {X: 2, Before: 2, After: 1}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("NetPixels = %+v, want %+v", got, want)
+	}
+	// Without the meta delta, indices alone decide.
+	a.Meta = nil
+	if got := NetPixels([]Change{a, b}); len(got) != 1 || got[0].X != 2 {
+		t.Fatalf("no meta: NetPixels = %+v", got)
+	}
+}

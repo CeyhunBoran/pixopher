@@ -61,9 +61,11 @@ func (c *Ctx) Set(x, y int, v doc.Index) bool {
 func (c *Ctx) SetAt(layer, frame, x, y int, v doc.Index) {
 	before := c.Doc.Pixel(layer, frame, x, y)
 	k := pixKey{layer, frame, x, y}
+	// A write that keeps the index is recorded too: when the step changes
+	// the palette, the index may name another entry afterwards (Finish).
 	if i, ok := c.index[k]; ok {
 		c.pixels[i].After = v
-	} else if before != v {
+	} else {
 		c.index[k] = len(c.pixels)
 		c.pixels = append(c.pixels, doc.PixelDelta{
 			Layer: layer, Frame: frame, X: x, Y: y, Before: before, After: v,
@@ -73,13 +75,17 @@ func (c *Ctx) SetAt(layer, frame, x, y int, v doc.Index) {
 }
 
 // Finish returns the step's change: the pixels whose value differs from the
-// start of the step, sorted, and a meta delta when the header changed.
+// start of the step, sorted, and a meta delta when the header changed. A
+// pixel whose index stays but names another palette entry afterwards, such
+// as one palette rm --replace moves onto the entry that slides into its
+// index, counts as changed (D60).
 func (c *Ctx) Finish() Change {
-	ch := Change{Pixels: netPixels(c.pixels)}
-	ch.BBox = bbox(ch.Pixels)
+	var ch Change
 	if h := c.Doc.Header(); !reflect.DeepEqual(h, c.header) {
 		ch.Meta = &doc.MetaDelta{Before: c.header, After: h}
 	}
+	ch.Pixels = NetPixels([]Change{{Pixels: c.pixels, Meta: ch.Meta}})
+	ch.BBox = bbox(ch.Pixels)
 	return ch
 }
 
@@ -112,32 +118,35 @@ func Reapply(d *doc.Doc, ch Change) {
 
 // NetPixels combines the pixel deltas of consecutive changes: for each pixel
 // the first Before and the last After, dropping pixels that end where they
-// started. The result is sorted.
+// started. A pixel ends where it started when its index is the same and
+// names the same palette entry (by key) before its first change and after
+// its last; the changes' meta deltas give those palettes (D60). The result
+// is sorted.
 func NetPixels(chs []Change) []doc.PixelDelta {
-	var all []doc.PixelDelta
-	for _, ch := range chs {
-		all = append(all, ch.Pixels...)
+	before, after := paletteSpan(chs)
+	type net struct {
+		doc.PixelDelta
+		first, last int // changes the pixel's first and last delta are in
 	}
-	return netPixels(all)
-}
-
-// BBox returns the bounding box of deltas, or the zero Rect when there are
-// none. Deltas on different cels share one box.
-func BBox(deltas []doc.PixelDelta) doc.Rect { return bbox(deltas) }
-
-func netPixels(deltas []doc.PixelDelta) []doc.PixelDelta {
-	index := make(map[pixKey]int, len(deltas))
-	var out []doc.PixelDelta
-	for _, p := range deltas {
-		k := pixKey{p.Layer, p.Frame, p.X, p.Y}
-		if i, ok := index[k]; ok {
-			out[i].After = p.After
-			continue
+	index := map[pixKey]int{}
+	var all []net
+	for i, ch := range chs {
+		for _, p := range ch.Pixels {
+			k := pixKey{p.Layer, p.Frame, p.X, p.Y}
+			if j, ok := index[k]; ok {
+				all[j].After, all[j].last = p.After, i
+				continue
+			}
+			index[k] = len(all)
+			all = append(all, net{p, i, i})
 		}
-		index[k] = len(out)
-		out = append(out, p)
 	}
-	out = slices.DeleteFunc(out, func(p doc.PixelDelta) bool { return p.Before == p.After })
+	var out []doc.PixelDelta
+	for _, n := range all {
+		if n.Before != n.After || !sameKey(before[n.first], after[n.last], n.Before) {
+			out = append(out, n.PixelDelta)
+		}
+	}
 	slices.SortFunc(out, func(a, b doc.PixelDelta) int {
 		switch {
 		case a.Less(b):
@@ -149,6 +158,47 @@ func netPixels(deltas []doc.PixelDelta) []doc.PixelDelta {
 	})
 	return out
 }
+
+// paletteSpan returns the palette entries in effect before and after each of
+// chs, as far as their meta deltas tell: nil for all of them when no change
+// has a meta delta, as the palette then never changes.
+func paletteSpan(chs []Change) (before, after [][]doc.Entry) {
+	before, after = make([][]doc.Entry, len(chs)), make([][]doc.Entry, len(chs))
+	var cur []doc.Entry
+	for _, ch := range chs {
+		if ch.Meta != nil {
+			cur = ch.Meta.Before.Palette.Entries // the palette before the first meta delta
+			break
+		}
+	}
+	for i, ch := range chs {
+		if ch.Meta != nil {
+			cur = ch.Meta.Before.Palette.Entries
+		}
+		before[i] = cur
+		if ch.Meta != nil {
+			cur = ch.Meta.After.Palette.Entries
+		}
+		after[i] = cur
+	}
+	return before, after
+}
+
+// sameKey reports whether index v names entries with the same key in
+// palettes a and b. Nil palettes stand for one unchanged palette.
+func sameKey(a, b []doc.Entry, v doc.Index) bool {
+	if a == nil || b == nil || v == doc.Transparent {
+		return true
+	}
+	if int(v) >= len(a) || int(v) >= len(b) {
+		return int(v) >= len(a) && int(v) >= len(b)
+	}
+	return a[v].Key == b[v].Key
+}
+
+// BBox returns the bounding box of deltas, or the zero Rect when there are
+// none. Deltas on different cels share one box.
+func BBox(deltas []doc.PixelDelta) doc.Rect { return bbox(deltas) }
 
 func bbox(deltas []doc.PixelDelta) doc.Rect {
 	if len(deltas) == 0 {

@@ -1,6 +1,6 @@
 $ ramp rm glass
 $ palette rm g --replace G
-changed 3  bbox 7,1 2,4  meta true
+changed 6  bbox 6,1 4,4  meta true
 --- document
 pixopher = 1
 size = [16, 16]
