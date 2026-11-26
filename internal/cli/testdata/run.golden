@@ -1,0 +1,154 @@
+$ pxo new hero.pxo --size 8x8 --palette none --json
+exit 0
+--- stdout
+{"ok":true,"rev":0,"changed":0,"warnings":[]}
+
+$ cat body.pxs
+# the body, in three steps
+palette add o #1a1c2c ink
+rect 1,1 6,6 #ef7d57
+--- the eyes
+px 2,3 ink 5,3 ink   # two dots
+---
+@set layer=main frame=0
+line 1,7 6,7 '#38b764'
+
+$ pxo run body.pxs -m 'block in' --json
+exit 0
+--- stdout
+{"ok":true,"rev":3,"changed":42,"bbox":[1,1,6,7],"warnings":[]}
+
+$ pxo log
+exit 0
+--- stdout
+rev 3  t_0001  cli  2026-11-25T09:00:00Z  @set layer=main frame=0; line 1,7 6,7 #38b764  -m 'block in'
+rev 2  t_0001  cli  2026-11-25T09:00:00Z  px 2,3 ink 5,3 ink  -m 'the eyes'
+rev 1  t_0001  cli  2026-11-25T09:00:00Z  palette add o #1a1c2c ink; rect 1,1,6,6 #ef7d57  -m 'block in'
+
+$ pxo show --grid
+exit 0
+--- stdout
+........
+.aaaaaa.
+.aaaaaa.
+.aoaaoa.
+.aaaaaa.
+.aaaaaa.
+.aaaaaa.
+.bbbbbb.
+
+$ pxo undo --step --json
+exit 0
+--- stdout
+{"ok":true,"rev":4,"changed":6,"bbox":[1,7,6,1],"undone":[{"rev":3,"tx":"t_0001"}],"warnings":[]}
+
+$ pxo undo --json
+exit 0
+--- stdout
+{"ok":true,"rev":6,"changed":36,"bbox":[1,1,6,6],"undone":[{"rev":2,"tx":"t_0001"},{"rev":1,"tx":"t_0001"}],"warnings":[]}
+
+$ pxo redo --json
+exit 0
+--- stdout
+{"ok":true,"rev":9,"changed":42,"bbox":[1,1,6,7],"redone":[{"rev":1,"tx":"t_0001"},{"rev":2,"tx":"t_0001"},{"rev":3,"tx":"t_0001"}],"warnings":[]}
+
+$ cat typo.pxs
+px 0,0 ink
+---
+# line 4 has the typo
+px 7,0 inc
+
+$ pxo run typo.pxs --json
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"script_error","message":"line 4: unknown_color: unknown color \"inc\"","hint":"did you mean \"ink\"?","arg":"color","line":4,"cause":"unknown_color"}}
+
+$ pxo run typo.pxs
+exit 2
+--- stderr
+error[script_error]: line 4: unknown_color: unknown color "inc"
+hint: did you mean "ink"?
+
+$ pxo run hero.pxo
+--- stdin
+px 0,0 ink
+rect 0,0 2,2 ink --outlin
+exit 2
+--- stderr
+error[script_error]: line 2: usage: unknown flag --outlin
+
+$ pxo run -
+--- stdin
+info
+exit 2
+--- stderr
+error[script_error]: line 1: usage: info doesn't change the document, so it can't run in a script
+hint: run `pxo info` after the script
+
+$ pxo log --limit 1
+exit 0
+--- stdout
+rev 9  t_0007  cli  2026-11-25T09:00:00Z  redo rev 3
+
+$ pxo run --dry-run --json
+--- stdin
+px 0,0 ink
+exit 0
+--- stdout
+{"ok":true,"rev":10,"changed":1,"bbox":[0,0,1,1],"warnings":[],"dry_run":true}
+
+$ pxo run --continue-on-error --json
+--- stdin
+px 0,0 ink
+px 9,9 ink
+--- more
+bogus 1
+px 7,7 #fff
+exit 0
+--- stdout
+{"ok":true,"rev":11,"changed":2,"bbox":[0,0,8,8],"warnings":["line 2 skipped: out_of_bounds: x=9 is outside the canvas (canvas is 8x8; valid x is 0..7)","line 4 skipped: usage: unknown op \"bogus\""]}
+
+$ pxo run --continue-on-error
+--- stdin
+px 9,9 ink
+exit 0
+--- stdout
+ok rev 11  +0px
+--- stderr
+warning: line 1 skipped: out_of_bounds: x=9 is outside the canvas (canvas is 8x8; valid x is 0..7)
+
+$ pxo log --limit 2
+exit 0
+--- stdout
+rev 11  t_0010  cli  2026-11-25T09:00:00Z  px 7,7 #fff  -m more
+rev 10  t_0010  cli  2026-11-25T09:00:00Z  px 0,0 ink
+
+$ pxo run --pace 40ms --json
+--- stdin
+px 1,0 ink
+exit 0
+--- stdout
+{"ok":true,"rev":12,"changed":1,"bbox":[1,0,1,1],"warnings":[]}
+
+$ pxo run --pace 40 --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"bad pace \"40\"","hint":"pace is a duration from 0 to 10s, such as 40ms","arg":"pace"}}
+
+$ pxo run --pace -1s
+exit 1
+--- stderr
+error[usage]: bad pace "-1s"
+hint: pace is a duration from 0 to 10s, such as 40ms
+
+$ pxo run missing.pxs --json
+exit 4
+--- stdout
+{"ok":false,"error":{"code":"io","message":"script missing.pxs does not exist","arg":"script"}}
+
+$ pxo run a.pxs b.pxs
+exit 1
+--- stderr
+error[usage]: unexpected argument "b.pxs"
+hint: see `pixopher run --help`
+

@@ -2,6 +2,7 @@ package errs
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -115,5 +116,25 @@ func TestExitCodesMatchDocs(t *testing.T) {
 		if got := ExitCode(c); got != w {
 			t.Errorf("ExitCode(%s) = %d, docs/cli.md says %d", c, got, w)
 		}
+	}
+}
+
+func TestAtLine(t *testing.T) {
+	inner := New(UnknownColor, `unknown color "inc"`).WithHint(`did you mean "ink"?`).WithArg("color")
+	err := AtLine(7, inner)
+	b, _ := json.Marshal(err)
+	want := `{"code":"script_error","message":"line 7: unknown_color: unknown color \"inc\"","hint":"did you mean \"ink\"?","arg":"color","line":7,"cause":"unknown_color"}`
+	if string(b) != want {
+		t.Fatalf("got %s, want %s", b, want)
+	}
+	if ExitCode(CodeOf(err)) != ExitDomain {
+		t.Fatal("a script_error is a domain error")
+	}
+	if again := AtLine(9, err); !errors.Is(again, err) {
+		t.Fatal("a script_error is wrapped twice")
+	}
+	plain := fmt.Errorf("plain")
+	if !errors.Is(AtLine(1, plain), plain) {
+		t.Fatal("an error without a code is wrapped")
 	}
 }

@@ -53,8 +53,8 @@ export --scale 8` and `undo` back to an empty canvas, with every step's
 
 Goal: agents can draw a lot per call and refer to things by name.
 
-- [ ] `run` with steps (`---`), `@set`, inline grid blocks, line-numbered errors, `--pace`
-- [ ] `grid` paint with `--legend`, `--opaque`, `_` erase
+- [x] `run` with steps (`---`), `@set`, line-numbered errors, `--continue-on-error`, `--pace` (D62, D63)
+- [ ] `grid` paint with `--legend`, `--opaque`, `_` erase, and inline grid blocks in `run` scripts
 - [ ] `ellipse`, `circle`, `poly`, `polyline`, `gradient`, `dither`
 - [ ] `sym` (x/y/xy, .0/.5 axes) and `mirror`
 - [ ] `part save/add/list/show/rm`, `stamp` with flip/rot/align

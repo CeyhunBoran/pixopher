@@ -13,7 +13,7 @@ plan  →  block in (batch)  →  look / show --grid  →  lint  →  refine (ba
 Every step is one command and returns compact output. `--json` everywhere
 lets agents parse results reliably.
 
-## Batch scripts
+## Batch scripts [wip]
 
 `pxo run [script|-]` applies many ops as **one transaction**, so one
 `undo` reverts the whole run (`undo --step` reverts only the last step).
@@ -28,19 +28,25 @@ line 10,3 10,5 ink
 EOF
 ```
 
-Syntax:
+Syntax (details in D62) **[done]**, apart from grid blocks:
 
 - One op per line, using the same words as the CLI without the `pxo` prefix.
+  Only ops that change the document can run; `show`, `new`, `undo` and
+  the like are errors.
 - A comment is `#` at the start of a line, or `#` followed by a space or the
   end of the line. `#` followed directly by hex digits (`#ff8800`) is a
   color, so hex colors need no quoting in scripts.
 - Quoting follows shell rules (`"..."`, `'...'`) for args with spaces.
 - `--- <message>` starts a new **step** inside the same run. Each step gets
   its own caption in the live viewer and its own history entry and rev. All
-  of a run's steps share one `tx` id. With `--atomic` (the default), the
-  whole run rolls back if any line fails, and nothing is written.
-- `@set layer=shine frame=2` changes the target for the following lines.
-- Heredoc blocks for grids are allowed inside scripts:
+  of a run's steps share one `tx` id. Steps without a message of their own
+  (the lines before the first `---`, or a bare `---`) take the `-m`
+  caption. The whole run rolls back if any line fails, and nothing is
+  written.
+- `@set layer=shine frame=2` changes the target for the following lines,
+  across steps, until the next `@set`. Layers are named or numbered, and
+  frames are numbered from 0 (`tag:<name>` once tags exist, M4).
+- Heredoc blocks for grids are allowed inside scripts **[M2]**:
 
   ```
   grid 4,4 <<
@@ -50,14 +56,26 @@ Syntax:
   >>
   ```
 
-- On error, nothing is written (unless `--continue-on-error`), and the
-  output names the line:
-  `script_error line 7: unknown_color "inc", did you mean "ink"?`
+- On error, nothing is written, and the error is a `script_error` that
+  names the line and the code it wraps:
+
+  ```
+  error[script_error]: line 7: unknown_color: unknown color "inc"
+  hint: did you mean "ink"?
+  ```
+
+  With `--json` the error also has `"line": 7` and
+  `"cause": "unknown_color"` ([cli.md](cli.md#output-done)).
+- With `--continue-on-error`, a failing line is skipped and rolled back
+  instead, the rest of the run lands, and each skip is a warning:
+  `line 7 skipped: unknown_color: unknown color "inc" (did you mean "ink"?)`.
 
 **Pacing for viewers**: `--pace 40ms` makes the engine emit each op as a
 separate live event with a delay, so the human sees strokes appear one by one
 even though the agent sent them in one call. It is purely cosmetic and only
-affects viewers. The file is written once at the end.
+affects viewers. The file is written once at the end. Events need a running
+`serve` (M7); in direct mode nothing listens, so `--pace` is accepted and
+the run goes at full speed (D63).
 
 ## Grid paint
 

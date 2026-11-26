@@ -172,7 +172,8 @@ is all that undo and redo need. The log encoding of a `Change` is in D31.
 - The CLI turns each `Spec` into a cobra command (D37).
 - `ops.Parse` turns tokens into `Args`, and `ops.Format` turns `Args` back
   into the canonical line that the log stores (D34). The CLI uses them, and
-  the batch parser will turn each script line into the same `Args` with them.
+  the batch parser (`internal/script`) turns each script line into the same
+  `Args` with them (D62).
 - The MCP server exposes a small set of tools that call into the registry (see
   [agent-workflow.md](agent-workflow.md#mcp-server)).
 - `pixopher schema --json` dumps all specs for agents and tooling.

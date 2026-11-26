@@ -137,9 +137,16 @@ func checkEnvelope(fail func(string, ...any), obj map[string]json.RawMessage, co
 		return
 	}
 	for k := range e {
-		if !slices.Contains([]string{"code", "message", "hint", "arg", "details"}, k) {
+		if !slices.Contains([]string{"code", "message", "hint", "arg", "line", "cause", "details"}, k) {
 			fail("unexpected error key %q", k)
 		}
+	}
+	// A script_error, and only a script_error, names its line and the code
+	// it wraps.
+	_, line := e["line"]
+	_, cause := e["cause"]
+	if script := string(e["code"]) == `"script_error"`; line != script || cause != script {
+		fail("line and cause must be given exactly for a script_error")
 	}
 	for _, k := range []string{"hint", "arg"} {
 		if string(e[k]) == `""` {

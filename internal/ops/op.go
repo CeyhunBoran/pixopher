@@ -85,4 +85,8 @@ type Call struct {
 	// "rect 6,1 4,3 ink". It is stored in the history log for replay and
 	// captions.
 	Line string
+	// LineNo is the call's 1-based line in a batch script, or 0 when it
+	// comes from elsewhere. The engine wraps the call's errors in a
+	// script_error naming that line.
+	LineNo int
 }

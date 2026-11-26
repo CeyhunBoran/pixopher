@@ -43,3 +43,9 @@ Questions that are not decided yet. When one is resolved, move the answer to
   `cmd/pxo` main so `go install .../cmd/pxo@latest` works, tell README
   readers to add the alias themselves, or make hints name `pixopher`?
   Decide by M3.
+
+## Batch scripts
+
+- **`run --step-messages`**: cli.md lists it, but nothing says what it
+  does. Print one result line per step? Take each step's caption from
+  its first op? Define it or drop it before M2 ends.

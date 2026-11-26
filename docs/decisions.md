@@ -944,3 +944,67 @@ matching an index alone no longer says that.
 *Why*: a timing check that fails at random gets ignored, and one that
 never runs proves nothing. A median over runs on one OS is the steadiest
 signal that still catches a real slowdown.
+
+**D62: Batch script details** (2026-11-27)
+- **Lines**: scripts are split on `\n`, and a `\r` before it is dropped,
+  so CRLF scripts run the same on every OS. Line numbers count every
+  physical line from 1, blank and comment lines included. A line whose
+  first non-blank character is `#` is a comment. Elsewhere, a `#` that
+  starts a token and is followed by a space, a tab or the end of the line
+  starts a comment; any other `#` belongs to its token. Tokens follow shell
+  rules: `'...'` is literal, `"..."` takes `\` before `\ " $` and a
+  backtick, and a backslash outside quotes escapes the next character. A
+  quote must close on its own line. This reads what `ops.Quote` writes.
+- **Ops**: a line calls an op of the registry that changes an existing
+  document. Two-word names (`palette add`) are tried first. Observation
+  ops, `new` and the non-op commands (`undo`, `run`, `export`, ...) are
+  `usage` errors with a hint. The common flags (`-m`, `--as`, `-f`, ...)
+  are unknown flags in a script.
+- **Steps**: `---` alone, or followed by a space or tab and a message,
+  starts a step; the message is taken as is. Steps without calls are
+  dropped. A step with no message of its own (the lines before the first
+  `---`, or a bare `---`) gets the `-m` caption.
+- **`@set`**: takes `layer=<name|index>` and `frame=<index|tag:name>`, at
+  least one, each once, in any order. It is checked against the document
+  when it applies: `unknown_layer` or `unknown_frame`, and every `tag:`
+  frame is `unknown_frame` until tags land (M4). The target holds until the
+  next `@set`, across steps. `@set` lines are logged in the entry's `ops`
+  in their canonical form (`@set layer=top frame=0`, keys in that order),
+  and an entry that starts on a target other than the default first
+  restates it as `@set layer=<name> frame=<index>`, so every entry replays
+  on its own.
+- **Errors**: the whole script is parsed before the lock is taken. A line
+  that fails, while being read or applied, fails the run as `script_error`
+  (exit 2, whatever it wraps) and nothing is written. The error's message
+  is `line <n>: <code>: <message>`, its hint, `arg` and `details` are the
+  wrapped error's, and it adds `line` (the number) and `cause` (the wrapped
+  code). Errors that belong to no line (`no_file`, `locked`, `rev_conflict`,
+  `io`) are not wrapped.
+- **`--continue-on-error`**: a failing line is skipped instead, and what it
+  wrote before failing (pixels and header) is rolled back, so the result is
+  the same as a script without that line. Each skip adds the warning `line
+  <n> skipped: <code>: <message> (<hint>)`, in line order, and the exit
+  code is 0. A skipped `@set` leaves the target as it was.
+  `--atomic` is not a flag: atomic is what a run is without
+  `--continue-on-error`.
+*Why*: line numbers that match the editor and shell-style quoting are what
+an agent writing a heredoc expects. Keeping `@set` in the log means a
+replay never needs the script, and a top-level `line` and `cause` let an
+agent branch on the real problem without parsing the message.
+
+**D63: `--pace` without a server** (2026-11-27)
+`run --pace <duration>` takes a Go duration from 0 to 10s (`40ms`); a bare
+number or a negative one is a `usage` error. The engine has an op-event
+hook: with `Options.OnOp` set, it sends one `op` event per applied call
+(not for `@set` or skipped lines), with the pixels the call wrote, and
+waits the pace after each, before the file is written once at the end. In
+direct mode nothing listens, so the CLI sets no hook, the run never waits,
+and `--pace` changes nothing. `serve` (M7) attaches the hook and streams
+the events.
+*Why*: in direct mode the file is written once, so viewers watching it
+can't see single strokes, and waiting would only hold the lock longer.
+The flag is still accepted, so scripts and agents can use it now and get
+pacing when a server runs.
+*Consequences*: in M7, events go out before the transaction commits, so a
+run that later fails has shown strokes that never land. The server must
+tell viewers to reload in that case.

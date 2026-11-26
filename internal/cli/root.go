@@ -26,6 +26,7 @@ type config struct {
 	backend engine.Backend
 	getenv  func(string) string
 	now     func() time.Time
+	stdin   io.Reader // run's script when it names none; os.Stdin when nil
 }
 
 func defaultConfig() config {
@@ -60,7 +61,7 @@ func newRoot(info BuildInfo, st *state) *cobra.Command {
 	})
 	root.AddCommand(newVersionCmd(info, st), newUseCmd(st))
 	root.AddCommand(newHistoryCmds(st)...)
-	root.AddCommand(newExportCmd(st))
+	root.AddCommand(newExportCmd(st), newRunCmd(st))
 	for _, op := range st.cfg.ops.All() {
 		addOpCommand(root, op, st)
 	}
@@ -79,6 +80,9 @@ func execute(info BuildInfo, cfg config, args []string, stdout, stderr io.Writer
 	root.SetArgs(args)
 	root.SetOut(stdout)
 	root.SetErr(stderr)
+	if cfg.stdin != nil {
+		root.SetIn(cfg.stdin)
+	}
 	cmd, err := root.ExecuteC()
 	if err == nil {
 		return errs.ExitOK

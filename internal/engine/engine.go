@@ -31,6 +31,25 @@ type Options struct {
 	Message     string           // -m for Undo; Apply's steps carry their own captions
 	LockTimeout time.Duration    // DefaultLockTimeout when zero
 	Now         func() time.Time // clock for entry timestamps; time.Now when nil
+
+	// ContinueOnError makes Apply skip a call that fails, undoing what it
+	// wrote, and report it as a warning instead of failing (run
+	// --continue-on-error).
+	ContinueOnError bool
+	// OnOp, when set, gets one event per call as it applies, and Apply
+	// waits Pace after each (run --pace). Direct mode has no live viewer
+	// to send them to, so the CLI leaves it nil there and never waits
+	// (D63).
+	OnOp func(OpEvent)
+	Pace time.Duration
+}
+
+// OpEvent is one call of a transaction as it applies, for live viewers:
+// the `op` event of docs/live-view.md#event-model.
+type OpEvent struct {
+	Rev    int              // the rev of the step the call is in, once that step is written
+	Op     string           // the call's canonical line
+	Pixels []doc.PixelDelta // what the call wrote: Before is the value at the start of its step
 }
 
 // Step is one history entry's worth of calls, with its caption.
@@ -112,20 +131,37 @@ func (b Direct) Apply(path string, steps []Step, opt Options) (Result, error) {
 
 	ts := opt.Now().UTC().Format(time.RFC3339)
 	var (
-		changes []ops.Change
-		entries []pxofile.Entry
-		tx      string
+		changes  []ops.Change
+		entries  []pxofile.Entry
+		tx       string
+		warnings = []string{}
 	)
+	// The target cel carries over from one step to the next, so an @set
+	// holds until the next one (D62).
+	layer, frame := ops.Target(d)
 	for _, st := range steps {
-		layer, frame := ops.Target(d)
 		ctx := ops.NewCtx(d, layer, frame)
-		lines := make([]string, len(st.Calls))
-		for i, c := range st.Calls {
-			if err := c.Op.Apply(ctx, c.Args); err != nil {
+		var lines []string
+		if dl, df := ops.Target(d); layer != dl || frame != df {
+			// Each entry names its own target, so it replays on its own.
+			lines = append(lines, ops.SetLine(d, layer, frame))
+		}
+		for _, c := range st.Calls {
+			skipped, err := applyCall(ctx, c, &opt)
+			if err != nil {
 				return Result{}, err
 			}
-			lines[i] = c.Line
+			if skipped != "" {
+				warnings = append(warnings, skipped)
+				continue
+			}
+			lines = append(lines, c.Line)
+			if opt.OnOp != nil && !ops.IsSet(c) {
+				opt.OnOp(OpEvent{Rev: d.Rev + 1, Op: c.Line, Pixels: ctx.Written()})
+				time.Sleep(opt.Pace)
+			}
 		}
+		layer, frame = ctx.Layer, ctx.Frame
 		ch := ctx.Finish()
 		if ch.Empty() {
 			continue
@@ -143,7 +179,7 @@ func (b Direct) Apply(path string, steps []Step, opt Options) (Result, error) {
 	}
 
 	net := ops.NetPixels(changes)
-	res := Result{OK: true, Rev: d.Rev, Changed: len(net), Warnings: []string{}, DryRun: opt.DryRun}
+	res := Result{OK: true, Rev: d.Rev, Changed: len(net), Warnings: warnings, DryRun: opt.DryRun}
 	if len(net) > 0 {
 		res.BBox = rectSlice(ops.BBox(net))
 	}
@@ -151,6 +187,45 @@ func (b Direct) Apply(path string, steps []Step, opt Options) (Result, error) {
 		return res, nil
 	}
 	return res, commit(path, d, entries, opt.DryRun)
+}
+
+// applyCall runs one call on ctx. A failing call from a script line fails as a
+// script_error naming the line. With opt.ContinueOnError, its writes are
+// undone instead and apply returns the warning that reports the skip.
+func applyCall(ctx *ops.Ctx, c ops.Call, opt *Options) (skipped string, err error) {
+	if opt.ContinueOnError || opt.OnOp != nil {
+		ctx.Mark()
+	}
+	err = c.Op.Apply(ctx, c.Args)
+	if err == nil {
+		return "", nil
+	}
+	if !opt.ContinueOnError {
+		if c.LineNo > 0 {
+			err = errs.AtLine(c.LineNo, err)
+		}
+		return "", err
+	}
+	ctx.Rollback()
+	return skipWarning(c.LineNo, err), nil
+}
+
+// skipWarning is the warning for a call skipped by --continue-on-error:
+// `line 7 skipped: unknown_color: unknown color "inc" (did you mean "ink"?)`.
+func skipWarning(line int, err error) string {
+	w := "skipped: "
+	if line > 0 {
+		w = fmt.Sprintf("line %d skipped: ", line)
+	}
+	e, ok := errors.AsType[*errs.Error](err)
+	if !ok {
+		return w + err.Error()
+	}
+	w += fmt.Sprintf("%s: %s", e.Code, e.Message)
+	if e.Hint != "" {
+		w += " (" + e.Hint + ")"
+	}
+	return w
 }
 
 // Undo runs an undo or redo as one transaction under the lock: it reads the

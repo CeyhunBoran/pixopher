@@ -17,6 +17,15 @@ type Ctx struct {
 	header *doc.Doc // header snapshot taken by NewCtx
 	pixels []doc.PixelDelta
 	index  map[pixKey]int // position of a pixel's delta in pixels
+	mark   *mark          // set by Mark
+}
+
+// mark is the state Rollback returns to: the deltas recorded before it, the
+// header, and the After values that writes since the mark replaced.
+type mark struct {
+	n      int
+	header *doc.Doc
+	afters map[int]doc.Index // delta index (< n) to its After at the mark
 }
 
 type pixKey struct{ layer, frame, x, y int }
@@ -64,6 +73,11 @@ func (c *Ctx) SetAt(layer, frame, x, y int, v doc.Index) {
 	// A write that keeps the index is recorded too: when the step changes
 	// the palette, the index may name another entry afterwards (Finish).
 	if i, ok := c.index[k]; ok {
+		if m := c.mark; m != nil && i < m.n {
+			if _, seen := m.afters[i]; !seen {
+				m.afters[i] = c.pixels[i].After
+			}
+		}
 		c.pixels[i].After = v
 	} else {
 		c.index[k] = len(c.pixels)
@@ -72,6 +86,53 @@ func (c *Ctx) SetAt(layer, frame, x, y int, v doc.Index) {
 		})
 	}
 	c.Doc.SetPixel(layer, frame, x, y, v)
+}
+
+// Mark sets the point that Rollback returns to and Written counts from,
+// replacing an earlier mark. The engine marks before each call of a batch
+// script when a failing call is skipped (--continue-on-error) or its
+// writes are reported as a live event (--pace).
+func (c *Ctx) Mark() {
+	c.mark = &mark{n: len(c.pixels), header: c.Doc.Header(), afters: map[int]doc.Index{}}
+}
+
+// Rollback undoes every pixel write and header change since Mark, so a
+// failed call leaves nothing behind. It panics without a mark.
+func (c *Ctx) Rollback() {
+	m := c.mark
+	for i, v := range m.afters {
+		p := &c.pixels[i]
+		p.After = v
+		c.Doc.SetPixel(p.Layer, p.Frame, p.X, p.Y, v)
+	}
+	for _, p := range c.pixels[m.n:] {
+		c.Doc.SetPixel(p.Layer, p.Frame, p.X, p.Y, p.Before)
+		delete(c.index, pixKey{p.Layer, p.Frame, p.X, p.Y})
+	}
+	c.pixels = c.pixels[:m.n]
+	c.Doc.SetHeader(m.header)
+	c.Mark()
+}
+
+// Written returns the pixels written since Mark, with their value before
+// the step and now, sorted. A pixel written back to its value at the mark
+// is included. It panics without a mark.
+func (c *Ctx) Written() []doc.PixelDelta {
+	m := c.mark
+	out := slices.Clone(c.pixels[m.n:])
+	for i := range m.afters {
+		out = append(out, c.pixels[i])
+	}
+	slices.SortFunc(out, func(a, b doc.PixelDelta) int {
+		switch {
+		case a.Less(b):
+			return -1
+		case b.Less(a):
+			return 1
+		}
+		return 0
+	})
+	return out
 }
 
 // Finish returns the step's change: the pixels whose value differs from the

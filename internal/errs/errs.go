@@ -82,13 +82,17 @@ func ExitCode(c Code) int {
 // Error is a structured error with a stable code. Message says what went
 // wrong, Hint (optional) says how to fix it, and Arg (optional) names the
 // argument at fault. Details (optional) carries code-specific data, such as
-// the overlapping pixels of an undo_conflict. Its JSON form is the "error"
-// object of the --json error envelope (docs/cli.md#output-done).
+// the overlapping pixels of an undo_conflict. A script_error also has Line,
+// the script line at fault, and Cause, the code of the error it wraps
+// (AtLine). Its JSON form is the "error" object of the --json error
+// envelope (docs/cli.md#output-done).
 type Error struct {
 	Code    Code   `json:"code"`
 	Message string `json:"message"`
 	Hint    string `json:"hint,omitempty"`
 	Arg     string `json:"arg,omitempty"`
+	Line    int    `json:"line,omitempty"`
+	Cause   Code   `json:"cause,omitempty"`
 	Details any    `json:"details,omitempty"`
 }
 
@@ -115,6 +119,21 @@ func (e *Error) WithDetails(d any) *Error {
 func (e *Error) WithArg(arg string) *Error {
 	e.Arg = arg
 	return e
+}
+
+// AtLine wraps err, the failure of line n of a batch script, in a
+// script_error: the message gains a `line <n>: <code>: ` prefix, Line is n
+// and Cause is err's code, and the hint, arg and details carry over. An err
+// that is already a script_error, or has no code, comes back unchanged.
+func AtLine(n int, err error) error {
+	e, ok := errors.AsType[*Error](err)
+	if !ok || e.Code == ScriptError {
+		return err
+	}
+	return &Error{
+		Code: ScriptError, Message: fmt.Sprintf("line %d: %s: %s", n, e.Code, e.Message),
+		Hint: e.Hint, Arg: e.Arg, Line: n, Cause: e.Code, Details: e.Details,
+	}
 }
 
 // CodeOf returns the code of the first *Error in err's chain, or "" if there

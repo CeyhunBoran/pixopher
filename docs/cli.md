@@ -100,7 +100,16 @@ goes to stderr:
 ```
 
 `hint` and `arg` are omitted when empty. Some codes add a `details` object
-(`undo_conflict`, see [History](#history-m1-m7)). Without `--json`, stderr gets
+(`undo_conflict`, see [History](#history-m1-m7)). A `script_error` from
+`run` adds `line`, the script line at fault, and `cause`, the code of the
+error it wraps; its message starts with `line <n>: <cause>: ` and the hint
+and `arg` are the wrapped error's (D62):
+
+```json
+{"ok": false, "error": {"code": "script_error", "message": "line 4: unknown_color: unknown color \"inc\"", "hint": "did you mean \"ink\"?", "arg": "color", "line": 4, "cause": "unknown_color"}}
+```
+
+Without `--json`, stderr gets
 `error[<code>]: <message>` and, when there is one, `hint: <hint>`
 (D44). A `usage` error
 without its own hint gets ``see `pixopher <command> --help` ``.
@@ -147,11 +156,11 @@ either one (D29). Exit 5 comes with `lint`.
 `unknown_frame`, `unknown_region`, `unknown_anchor`, `unknown_part`,
 `layer_locked`, `rev_conflict`, `locked`, `undo_conflict`, `no_history`, `too_large`,
 `palette_full`, `grid_mismatch`, `script_error` (wraps another error and adds
-`line`), `io`, `unsupported_format`, `server_unavailable`, `already_exists`
+`line` and `cause`), `io`, `unsupported_format`, `server_unavailable`, `already_exists`
 (a key or name is taken), `in_use` (removing something still used, D53).
 
 Every code is defined and mapped to its exit code. A code for a feature
-that doesn't exist yet (`unknown_region`, `script_error`, ...) is first
+that doesn't exist yet (`unknown_region`, `unknown_part`, ...) is first
 returned when that feature lands.
 
 Codes are stable. They are part of the public API, and adding one is a minor
@@ -316,9 +325,14 @@ palette color shows as `+`. `get` then gives its color without a key, and
 ### Batch
 
 ```
-pxo run [<script>|-] [-m msg] [--step-messages] [--continue-on-error]   [M2]
+pxo run [<script>|-] [-m msg] [--continue-on-error] [--pace 40ms]   [done]
+pxo run ... [--step-messages]                                          [M2]
 ```
 
+`run` takes the common flags of mutating commands. With no script, or `-`,
+it reads stdin. `-m` captions the steps that have no `--- message` of their
+own. The result is one line for the whole run, like any mutating command;
+with `--continue-on-error`, each skipped line adds a warning (D62).
 Details are in [agent-workflow.md](agent-workflow.md#batch-scripts).
 
 ### History [M1, M7]

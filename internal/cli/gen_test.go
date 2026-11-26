@@ -102,6 +102,7 @@ type session struct {
 	t   *testing.T
 	env map[string]string
 	ops *ops.Registry // the test registry when nil
+	in  string        // stdin of the next command, then cleared
 	out strings.Builder
 }
 
@@ -112,10 +113,17 @@ func (s *session) run(line string, args ...string) int {
 	if s.ops != nil {
 		cfg.ops = s.ops
 	}
+	in := s.in
+	s.in = ""
+	cfg.stdin = strings.NewReader(in)
 	info := BuildInfo{Version: "v0.0.0-test", Commit: "abc1234", Date: "2026-11-25T09:00:00Z"}
 	code := execute(info, cfg, args, &stdout, &stderr)
 	checkContract(s.t, line, args, s.env, mutates(info, cfg, args), code, stdout.String(), stderr.String())
-	fmt.Fprintf(&s.out, "$ pxo %s\nexit %d\n", line, code)
+	fmt.Fprintf(&s.out, "$ pxo %s\n", line)
+	if in != "" {
+		fmt.Fprintf(&s.out, "--- stdin\n%s", in)
+	}
+	fmt.Fprintf(&s.out, "exit %d\n", code)
 	if stdout.Len() > 0 {
 		fmt.Fprintf(&s.out, "--- stdout\n%s", stdout.String())
 	}
@@ -127,14 +135,14 @@ func (s *session) run(line string, args ...string) int {
 }
 
 // mutates reports whether args run a command that changes a document: an
-// op with Mutates, undo or redo.
+// op with Mutates, undo, redo or run.
 func mutates(info BuildInfo, cfg config, args []string) bool {
 	cmd, _, err := newRoot(info, &state{cfg: cfg}).Find(args)
 	if err != nil {
 		return false
 	}
 	name := strings.TrimPrefix(cmd.CommandPath(), "pixopher ")
-	if name == "undo" || name == "redo" {
+	if name == "undo" || name == "redo" || name == "run" {
 		return true
 	}
 	op, ok := cfg.ops.Lookup(name)
