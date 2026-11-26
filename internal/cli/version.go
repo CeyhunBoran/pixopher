@@ -66,7 +66,7 @@ func newVersionCmd(info BuildInfo, st *state) *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print the version, commit and build date",
-		Args:  cobra.NoArgs,
+		Args:  positionals(),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if st.jsonOn(cmd, nil) {
 				return writeJSON(cmd.OutOrStdout(), struct {

@@ -68,7 +68,7 @@ func newRoot(info BuildInfo, st *state) *cobra.Command {
 }
 
 // Execute runs the command tree with args (without the program name) and
-// returns the process exit code (docs/cli.md#exit-codes).
+// returns the process exit code (docs/cli.md#exit-codes-done).
 func Execute(info BuildInfo, args []string, stdout, stderr io.Writer) int {
 	return execute(info, defaultConfig(), args, stdout, stderr)
 }
@@ -104,6 +104,22 @@ func execute(info BuildInfo, cfg config, args []string, stdout, stderr io.Writer
 		}
 	}
 	return errs.ExitCode(e.Code)
+}
+
+// positionals checks a plain command's positional arguments the way
+// generated commands do: a missing or extra one is a usage error, and arg
+// names the missing one.
+func positionals(names ...string) cobra.PositionalArgs {
+	return func(_ *cobra.Command, args []string) error {
+		if len(args) < len(names) {
+			n := names[len(args)]
+			return errs.New(errs.Usage, "missing argument <%s>", n).WithArg(n)
+		}
+		if len(args) > len(names) {
+			return errs.New(errs.Usage, "unexpected argument %q", args[len(names)])
+		}
+		return nil
+	}
 }
 
 // jsonOn reports whether output is JSON: an explicit --json flag wins, then

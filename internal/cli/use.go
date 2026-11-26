@@ -18,7 +18,7 @@ func newUseCmd(st *state) *cobra.Command {
 		Long: "Set the current document for this directory. It is stored in " + engine.CurrentFile +
 			" and used when neither -f nor $PIXOPHER_FILE is given.",
 		Example: "  pxo use hero.pxo",
-		Args:    cobra.ExactArgs(1),
+		Args:    positionals("file"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			stored, err := engine.Use(args[0])
 			if err != nil {
