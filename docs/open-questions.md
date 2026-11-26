@@ -36,3 +36,10 @@ Questions that are not decided yet. When one is resolved, move the answer to
 ## Product
 
 - **Telemetry**: none planned. Keep it that way?
+- **`pxo` alias for `go install` users**: M3 puts the alias only in
+  release archives, but error hints and docs name `pxo` (`pxo new ...`,
+  `pxo use ...`). Someone who installed with `go install` has only
+  `pixopher`, so a copied hint fails with "command not found". Add a
+  `cmd/pxo` main so `go install .../cmd/pxo@latest` works, tell README
+  readers to add the alias themselves, or make hints name `pixopher`?
+  Decide by M3.
