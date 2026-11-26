@@ -33,9 +33,10 @@ func Parse(src string, reg *ops.Registry, keepGoing bool) ([]Step, error) {
 		steps []Step
 		cur   Step
 	)
-	for i, raw := range strings.Split(src, "\n") {
+	lines := strings.Split(src, "\n")
+	for i := 0; i < len(lines); i++ {
 		n := i + 1
-		line := strings.TrimSpace(strings.TrimSuffix(raw, "\r"))
+		line := strings.TrimSpace(strings.TrimSuffix(lines[i], "\r"))
 		if msg, ok := stepLine(line); ok {
 			if len(cur.Calls) > 0 {
 				steps = append(steps, cur)
@@ -43,7 +44,11 @@ func Parse(src string, reg *ops.Registry, keepGoing bool) ([]Step, error) {
 			cur = Step{Msg: msg}
 			continue
 		}
-		call, err := parseLine(line, reg)
+		var call ops.Call
+		tokens, block, err := lineTokens(line, lines, &i)
+		if err == nil {
+			call, err = parseCall(tokens, block, reg)
+		}
 		if err != nil {
 			if !keepGoing {
 				return nil, errs.AtLine(n, err)
@@ -72,15 +77,50 @@ func stepLine(line string) (string, bool) {
 	return strings.TrimSpace(rest), true
 }
 
-// parseLine turns one line into a call. A blank or comment line gives a
-// call without an Op.
-func parseLine(line string, reg *ops.Registry) (ops.Call, error) {
+// lineTokens splits line, the one at index *i of lines, into tokens. A
+// line that ends in a bare `<<` starts a grid block: the lines after it, up
+// to one that is `>>`, are the grid's rows, and they take the place of the
+// `<<` as one token (ops.GridText). *i then moves past the `>>`, so the
+// block is consumed even when the line fails; block reports that it was
+// there. A blank or comment line gives no tokens.
+func lineTokens(line string, lines []string, i *int) (tokens []string, block bool, err error) {
 	if strings.HasPrefix(line, "#") {
-		return ops.Call{}, nil
+		return nil, false, nil
 	}
-	tokens, err := Fields(line)
+	tokens, bare, err := fields(line)
 	if err != nil || len(tokens) == 0 {
-		return ops.Call{}, err
+		return nil, false, err
+	}
+	last := len(tokens) - 1
+	t := tokens[last]
+	if !bare[last] || !strings.HasPrefix(t, "<<") {
+		return tokens, false, nil
+	}
+	if t != "<<" {
+		return nil, false, errs.New(errs.Usage, "a grid block starts with a bare <<, not %q", t).
+			WithHint("end the line with << and close the block with >> on its own line; quote a one-row grid that starts with <<")
+	}
+	var rows []string
+	for *i++; *i < len(lines); *i++ {
+		row := strings.TrimSpace(strings.TrimSuffix(lines[*i], "\r"))
+		if row == ">>" {
+			grid, err := ops.GridText(strings.Join(rows, "\n"))
+			if err != nil {
+				return nil, true, err
+			}
+			return append(tokens[:last], grid), true, nil
+		}
+		rows = append(rows, row)
+	}
+	return nil, true, errs.New(errs.Usage, "the grid block is not closed").
+		WithHint("end it with >> on its own line; the block ran to the end of the script")
+}
+
+// parseCall turns a line's tokens into a call; block says the last token
+// came from a grid block. No tokens give a call without an Op.
+func parseCall(tokens []string, block bool, reg *ops.Registry) (ops.Call, error) {
+	if len(tokens) == 0 {
+		return ops.Call{}, nil
 	}
 	if tokens[0] == "@set" {
 		return ops.ParseSet(tokens[1:])
@@ -94,6 +134,10 @@ func parseLine(line string, reg *ops.Registry) (ops.Call, error) {
 		return ops.Call{}, err
 	}
 	spec := op.Spec()
+	if block && !slices.ContainsFunc(spec.Args, func(a ops.ArgSpec) bool { return !a.Flag && a.Kind == ops.KindGrid }) {
+		return ops.Call{}, errs.New(errs.Usage, "%s takes no grid block", spec.Name).
+			WithHint("only ops with a grid argument, such as grid, take a << block")
+	}
 	args, err := ops.Parse(spec.Args, rest)
 	if err != nil {
 		return ops.Call{}, err

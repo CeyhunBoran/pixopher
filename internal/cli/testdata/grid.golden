@@ -1,0 +1,166 @@
+$ pxo new head.pxo --size 20x6 --palette none --json
+exit 0
+--- stdout
+{"ok":true,"rev":0,"changed":0,"warnings":[]}
+
+$ pxo run -m palette
+--- stdin
+palette add o #1a1c2c ink
+palette add k #f2c3a0 skin
+palette add K #c08060 skin_dark
+exit 0
+--- stdout
+ok rev 1  +0px
+
+$ pxo grid 4,2 --legend "s=skin S=skin_dark"
+--- stdin
+....oooooo....
+..oossssssoo..
+.ossSsssssssso
+exit 0
+--- stdout
+ok rev 2  +29px  bbox 5,2 13,3
+
+$ pxo show --rulers --legend
+exit 0
+--- stdout
+   0         1
+   01234567890123456789
+0  ....................
+1  ....................
+2  ........oooooo......
+3  ......ookkkkkkoo....
+4  .....okkKkkkkkkkko..
+5  ....................
+legend: . transparent  o ink #1a1c2c  k skin #f2c3a0  K skin_dark #c08060
+
+$ pxo grid 6,2 k_.K --json
+exit 0
+--- stdout
+{"ok":true,"rev":3,"changed":2,"bbox":[6,2,4,1],"warnings":[]}
+
+$ pxo grid 4,4 ..k. --opaque --json
+exit 0
+--- stdout
+{"ok":true,"rev":4,"changed":2,"bbox":[5,4,3,1],"warnings":[]}
+
+$ pxo show
+exit 0
+--- stdout
+....................
+....................
+......k.oKoooo......
+......ookkkkkkoo....
+......k.Kkkkkkkkko..
+....................
+
+$ pxo log --limit 3
+exit 0
+--- stdout
+rev 4  t_0004  cli  2026-11-25T09:00:00Z  grid 4,4 ..k. --opaque
+rev 3  t_0003  cli  2026-11-25T09:00:00Z  grid 6,2 k_.K
+rev 2  t_0002  cli  2026-11-25T09:00:00Z  grid 4,2 ....oooooo....,..oossssssoo..,.ossSsssssssso --legend 's=skin S=skin_dark'
+
+$ pxo grid 0,0 --json
+--- stdin
+oooo
+ooo
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"grid_mismatch","message":"row 2 has 3 cells, but row 1 has 4","hint":"every row must have the same width; use . for pixels to leave alone","arg":"grid","details":{"row":2}}}
+
+$ pxo grid 0,0
+--- stdin
+oo
+oq
+exit 2
+--- stderr
+error[unknown_color]: unknown key "q"
+hint: add "q" to --legend or the palette; the keys are: o k K
+
+$ pxo grid 0,0 o+ --json
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"invalid_color","message":"\"+\" can't be a palette key","hint":"+ marks a blended pixel in show --composite; look its color up with pxo get","arg":"grid","details":{"row":1,"col":2}}}
+
+$ pxo grid 0,0
+--- stdin
+
+
+exit 1
+--- stderr
+error[usage]: empty grid
+hint: pass the rows on stdin (a heredoc), in a script block between << and >>, or as one token with rows joined by commas
+
+$ pxo grid 0,0 o --legend .=ink --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"bad legend letter \".\"","hint":"a legend letter is as wide as a palette key (1) and can't be ., _ or another reserved character","arg":"legend"}}
+
+$ cat face.pxs
+--- the eyes
+grid 7,3 --legend e=#ffffff <<
+  e.e
+  o.o
+>>
+--- the chin
+grid 6,5 <<
+KKKKK
+>>
+
+$ pxo run face.pxs --json
+exit 0
+--- stdout
+{"ok":true,"rev":6,"changed":9,"bbox":[6,3,5,3],"warnings":[]}
+
+$ pxo show
+exit 0
+--- stdout
+....................
+....................
+......k.oKoooo......
+......oakakkkkoo....
+......koKokkkkkkko..
+......KKKKK.........
+
+$ pxo log --limit 2
+exit 0
+--- stdout
+rev 6  t_0005  cli  2026-11-25T09:00:00Z  grid 6,5 KKKKK  -m 'the chin'
+rev 5  t_0005  cli  2026-11-25T09:00:00Z  grid 7,3 e.e,o.o --legend e=#ffffff  -m 'the eyes'
+
+$ pxo run --json
+--- stdin
+px 0,0 ink
+grid 0,0 <<
+oo
+ob
+>>
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"script_error","message":"line 2: unknown_color: unknown key \"b\"","hint":"add \"b\" to --legend or the palette; the keys are: o k K a","arg":"grid","line":2,"cause":"unknown_color","details":{"row":2,"col":2}}}
+
+$ pxo run
+--- stdin
+grid 0,0 <<
+oo
+exit 2
+--- stderr
+error[script_error]: line 1: usage: the grid block is not closed
+hint: end it with >> on its own line; the block ran to the end of the script
+
+$ pxo undo --json
+exit 0
+--- stdout
+{"ok":true,"rev":8,"changed":9,"bbox":[6,3,5,3],"undone":[{"rev":6,"tx":"t_0005"},{"rev":5,"tx":"t_0005"}],"warnings":[]}
+
+$ pxo show
+exit 0
+--- stdout
+....................
+....................
+......k.oKoooo......
+......ookkkkkkoo....
+......k.Kkkkkkkkko..
+....................
+

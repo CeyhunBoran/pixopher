@@ -1,0 +1,27 @@
+$ grid 1,1 aabb..,__bbaa --opaque
+changed 5  bbox 1,1 3,2  meta false
+--- document
+pixopher = 1
+size = [8, 8]
+rev = 0
+key_width = 2
+
+[palette]
+".." = ["#00000000", "transparent"]
+aa = ["#ff0000", "red"]
+bb = ["#0000ff", "blue"]
+
+[[layers]]
+name = "main"
+
+[[frames]]
+duration_ms = 100
+
+[[cels]]
+layer = "main"
+frame = 0
+origin = [1, 1]
+grid = '''
+aabb..
+..bbaa
+'''

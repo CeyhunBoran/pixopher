@@ -13,7 +13,7 @@ plan  →  block in (batch)  →  look / show --grid  →  lint  →  refine (ba
 Every step is one command and returns compact output. `--json` everywhere
 lets agents parse results reliably.
 
-## Batch scripts [wip]
+## Batch scripts [done]
 
 `pxo run [script|-]` applies many ops as **one transaction**, so one
 `undo` reverts the whole run (`undo --step` reverts only the last step).
@@ -28,7 +28,7 @@ line 10,3 10,5 ink
 EOF
 ```
 
-Syntax (details in D62) **[done]**, apart from grid blocks:
+Syntax (details in D62 and D64) **[done]**:
 
 - One op per line, using the same words as the CLI without the `pxo` prefix.
   Only ops that change the document can run; `show`, `new`, `undo` and
@@ -46,7 +46,10 @@ Syntax (details in D62) **[done]**, apart from grid blocks:
 - `@set layer=shine frame=2` changes the target for the following lines,
   across steps, until the next `@set`. Layers are named or numbered, and
   frames are numbered from 0 (`tag:<name>` once tags exist, M4).
-- Heredoc blocks for grids are allowed inside scripts **[M2]**:
+- Heredoc blocks for grids are allowed inside scripts. A line that ends
+  in a bare `<<` starts the block, and a line that is `>>` ends it; every
+  line between is a row, even one that looks like `---` or a comment.
+  The log stores the grid as one token, rows joined by commas (D64):
 
   ```
   grid 4,4 <<
@@ -77,7 +80,7 @@ affects viewers. The file is written once at the end. Events need a running
 `serve` (M7); in direct mode nothing listens, so `--pace` is accepted and
 the run goes at full speed (D63).
 
-## Grid paint
+## Grid paint [done]
 
 An agent "draws" a whole area by writing a letter grid. This matches how
 people already hand-write sprites in code.
@@ -96,8 +99,15 @@ EOF
 - `--legend` maps grid letters to colors for this call only, so an agent can
   use mnemonic letters without changing the palette keys.
 - Rows must have equal length; otherwise the command fails with
-  `grid_mismatch` and reports the offending row.
-- Symmetry applies, so an agent can write only the left half.
+  `grid_mismatch` and reports the offending row in `details.row`
+  (from 1). A cell that is not a key, a legend letter, `.` or `_` fails
+  with `unknown_color` (`invalid_color` for a reserved character such as
+  `+`), with `details.row` and `details.col`. Nothing is painted then.
+- The grid can also be one argument, rows joined by commas:
+  `pxo grid 0,0 .oo.,oRRo,.oo.`. This is how it is logged (D64).
+- The grid may reach off the canvas; it is clipped.
+- Not yet: once `sym` lands (later in M2), symmetry applies to grid
+  paint like every draw op, so an agent can write only the left half.
 
 ## Grid read: letting text-only agents see [done]
 

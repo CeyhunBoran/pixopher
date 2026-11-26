@@ -263,10 +263,55 @@ func TestParseRepeatNeedsOne(t *testing.T) {
 	}
 }
 
-func TestParseGridUnsupported(t *testing.T) {
-	_, err := Parse([]ArgSpec{{Name: "g", Kind: KindGrid, Required: true}}, []string{"ab"})
-	if errs.CodeOf(err) != errs.Usage {
-		t.Fatalf("err = %v", err)
+// TestParseGrid: a grid is one token, rows joined by commas; an empty
+// token is a usage error, and the shape is the op's to check (D64).
+func TestParseGrid(t *testing.T) {
+	specs := []ArgSpec{{Name: "g", Kind: KindGrid, Required: true}}
+	a, err := Parse(specs, []string{"ab,c"})
+	if err != nil || a.String("g") != "ab,c" {
+		t.Fatalf("got %v, %v", a, err)
+	}
+	_, err = Parse(specs, []string{""})
+	if e, _ := errors.AsType[*errs.Error](err); e == nil || e.Code != errs.Usage || e.Arg != "g" {
+		t.Fatalf("err = %#v", err)
+	}
+	if _, err = Parse(specs, nil); !Missing(err, "g") {
+		t.Fatalf("Missing(%v) = false", err)
+	}
+}
+
+// TestFormatGrid: a grid call with a legend and --opaque reads back from
+// its canonical line to the same arguments.
+func TestFormatGrid(t *testing.T) {
+	op, _ := Default.Lookup("grid")
+	spec := op.Spec()
+	a, err := Parse(spec.Args, []string{"--opaque", "-2,3", "..s*,_Ss.", "--legend", "s=skin S=#ff0000"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	line := Format(spec, a)
+	if want := `grid -2,3 '..s*,_Ss.' --legend 's=skin S=#ff0000' --opaque`; line != want {
+		t.Fatalf("Format = %s, want %s", line, want)
+	}
+	again, err := Parse(spec.Args, quoteFields(strings.TrimPrefix(line, "grid ")))
+	if err != nil || !reflect.DeepEqual(again, a) {
+		t.Fatalf("read back %v, %v; want %v", again, err, a)
+	}
+}
+
+// TestGridText: rows are trimmed, blank edge lines dropped, and a comma in
+// a row is an error naming the row.
+func TestGridText(t *testing.T) {
+	got, err := GridText("\n  ..oo..\r\n\t.oRRo.\n\n..oo..  \n\n")
+	if err != nil || got != "..oo..,.oRRo.,,..oo.." {
+		t.Fatalf("got %q, %v", got, err)
+	}
+	if _, err := GridText(" \n\n"); errs.CodeOf(err) != errs.Usage {
+		t.Fatalf("empty: err = %v", err)
+	}
+	_, err = GridText("ab\na,b")
+	if e, _ := errors.AsType[*errs.Error](err); e == nil || e.Code != errs.InvalidColor || e.Details != (gridPos{Row: 2}) {
+		t.Fatalf("comma: err = %#v", err)
 	}
 }
 

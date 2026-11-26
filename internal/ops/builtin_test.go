@@ -69,6 +69,18 @@ func fixture(t testing.TB, name string) *doc.Doc {
 		d.SetPixel(0, 0, 1, 0, 2)
 		d.Layers[0].Locked = true
 		return d
+	case "wide":
+		// An 8x8 document at key width 2 with two entries, and a pixel
+		// of each at (1,1) and (3,1).
+		d, _ := doc.New(8, 8)
+		d.KeyWidth = 2
+		d.Palette.Entries[0].Key = ".."
+		d.Palette.Entries = append(d.Palette.Entries,
+			doc.Entry{Key: "aa", Name: "red", Color: doc.RGBA{R: 0xff, A: 0xff}},
+			doc.Entry{Key: "bb", Name: "blue", Color: doc.RGBA{B: 0xff, A: 0xff}})
+		d.SetPixel(0, 0, 1, 1, 2)
+		d.SetPixel(0, 0, 3, 1, 1)
+		return d
 	case "blank", "full", "locked":
 		d, err := doc.New(8, 8)
 		if err != nil {
@@ -99,10 +111,11 @@ func serialize(t testing.TB, d *doc.Doc) []byte {
 	return data
 }
 
-// call parses a script line for a built-in op.
+// call parses a script line for a built-in op. Single quotes group words
+// and are dropped, as a shell does.
 func call(t testing.TB, line string) (Call, error) {
 	t.Helper()
-	f := strings.Fields(line)
+	f := quoteFields(line)
 	op, ok := Default.Lookup(f[0])
 	if len(f) > 1 {
 		// Two-word ops: palette add, ramp rm, ...
@@ -118,6 +131,36 @@ func call(t testing.TB, line string) (Call, error) {
 		return Call{}, err
 	}
 	return Call{Op: op.(Mutator), Args: args, Line: Format(op.Spec(), args)}, nil
+}
+
+// quoteFields splits line on spaces outside single quotes and drops the
+// quotes.
+func quoteFields(line string) []string {
+	var (
+		out []string
+		tok strings.Builder
+		in  bool // inside a token
+		q   bool // inside quotes
+	)
+	for _, c := range line {
+		switch {
+		case c == '\'':
+			q, in = !q, true
+		case c == ' ' && !q:
+			if in {
+				out = append(out, tok.String())
+				tok.Reset()
+				in = false
+			}
+		default:
+			tok.WriteRune(c)
+			in = true
+		}
+	}
+	if in {
+		out = append(out, tok.String())
+	}
+	return out
 }
 
 // builtinCases are TestBuiltinGolden's cases. A case covers the op of its
@@ -172,6 +215,14 @@ var builtinCases = []struct {
 	{"ramp-add", "potion", []string{"ramp add dark o r g"}},
 	{"ramp-add-base", "potion", []string{"ramp add hot o r R w --base name:liquid"}},
 	{"ramp-rm", "potion", []string{"ramp rm glass"}},
+	{"grid", "potion", []string{"grid 5,1 oG.g,_RRo,.ww."}},
+	{"grid-opaque", "potion", []string{"grid 5,1 oG.g,_RRo,.ww. --opaque"}},
+	{"grid-clipped", "potion", []string{"grid -1,14 oooo,gggg,GGGG"}},
+	{"grid-legend", "potion", []string{"grid 0,0 aab.,a_bo --legend 'a=glass_light  b=liquid+1 o=liquid:0'"}},
+	{"grid-legend-transparent", "potion", []string{"grid 5,1 tot --legend t=."}},
+	{"grid-legend-hex", "blank", []string{"grid 0,0 ab.c,cba. --legend 'a=#ff0000 b=#00ff00 c=#ff0000'"}},
+	{"grid-legend-hex-clipped", "blank", []string{"grid 7,7 ab,ba --legend 'a=#ff0000 b=#0000ff'"}},
+	{"grid-wide", "wide", []string{"grid 1,1 aabb..,__bbaa --opaque"}},
 }
 
 // TestBuiltinGolden applies each case's lines as one step, compares the
@@ -188,9 +239,9 @@ func TestBuiltinGolden(t *testing.T) {
 			ctx := NewCtx(d, 0, 0)
 			var out bytes.Buffer
 			for _, line := range tt.lines {
-				// The test lines use shell quotes around hex colors; the
-				// parser gets the unquoted text, as a shell would pass it.
-				c, err := call(t, strings.ReplaceAll(line, "'", ""))
+				// The test lines use shell quotes; the parser gets the
+				// unquoted words, as a shell would pass them.
+				c, err := call(t, line)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -314,6 +365,25 @@ func TestBuiltinErrors(t *testing.T) {
 		{"potion", "ramp rm glas", errs.UnknownColor, "name", `no ramp named "glas"`},
 		{"variants", "ramp rm glass", errs.InUse, "name", `ramp "glass" is overridden by variant "night"`},
 		{"potion", "ramp add hot", errs.Usage, "step", ""},
+		{"potion", "grid 0,0 oo,ooo", errs.GridMismatch, "grid", "row 2 has 3 cells, but row 1 has 2"},
+		{"potion", "grid 0,0 oo,,oo", errs.GridMismatch, "grid", "row 2 has 0 cells, but row 1 has 2"},
+		{"wide", "grid 0,0 aab,aab", errs.GridMismatch, "grid", "row 1 is 3 characters, not a whole number of 2-character cells"},
+		{"potion", "grid 0,0 oo,oq", errs.UnknownColor, "grid", `unknown key "q"`},
+		{"potion", "grid 0,0 o+,oo", errs.InvalidColor, "grid", `"+" can't be a palette key`},
+		{"potion", "grid 0,0 o#", errs.InvalidColor, "grid", `"#" can't be a palette key`},
+		{"wide", "grid 0,0 aa_.", errs.InvalidColor, "grid", `"_." can't be a palette key`},
+		{"potion", "grid 0,0 , ", errs.Usage, "grid", "empty grid"},
+		{"potion", "grid 0,0 s --legend s=nosuch", errs.UnknownColor, "legend", `unknown color "nosuch"`},
+		{"potion", "grid 0,0 o --legend s=nosuch", errs.UnknownColor, "legend", `unknown color "nosuch"`},
+		{"potion", "grid 0,0 o --legend s", errs.Usage, "legend", `bad legend entry "s"`},
+		{"potion", "grid 0,0 o --legend s=", errs.Usage, "legend", `bad legend entry "s="`},
+		{"potion", "grid 0,0 o --legend .=ink", errs.Usage, "legend", `bad legend letter "."`},
+		{"potion", "grid 0,0 o --legend _=ink", errs.Usage, "legend", `bad legend letter "_"`},
+		{"potion", "grid 0,0 o --legend ss=ink", errs.Usage, "legend", `bad legend letter "ss"`},
+		{"potion", "grid 0,0 o --legend ,=ink", errs.Usage, "legend", `bad legend letter ","`},
+		{"potion", "grid 0,0 o --legend 's=ink s=glass'", errs.Usage, "legend", `legend letter "s" is given twice`},
+		{"full", "grid 0,0 a --legend a=#fedcba", errs.PaletteFull, "", "palette is full"},
+		{"locked", "grid 0,0 .", errs.LayerLocked, "", `layer "main" is locked`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.line, func(t *testing.T) {

@@ -177,3 +177,72 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatalf("only %d examples checked", n)
 	}
 }
+
+// TestParseGridBlock: the rows between a bare << and >> become the grid's
+// one token. `---` and `#` lines inside are rows, rows are trimmed, the
+// call keeps the line of its <<, and lines after the block keep their
+// physical numbers.
+func TestParseGridBlock(t *testing.T) {
+	src := "px 0,0 ink\n" +
+		"grid 4,4 --legend 's=skin S=skin_dark' <<  # the head\n" +
+		"\n" +
+		"  ..oo..\n" +
+		"\t.oRRo.\r\n" +
+		"---\n" +
+		"#\n" +
+		">>\n" +
+		"--- next\n" +
+		"grid 0,0 '<<'\n" +
+		"grid 1,1 --opaque <<\n" +
+		"o_\n" +
+		"  >>  \n" +
+		"px 1,1 ink\n"
+	steps, err := Parse(src, ops.Default, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"--- ", "1: px 0,0 ink", "2: grid 4,4 ..oo..,.oRRo.,---,# --legend 's=skin S=skin_dark'",
+		"--- next", "10: grid 0,0 '<<'", "11: grid 1,1 o_ --opaque", "14: px 1,1 ink",
+	}
+	if got := lines(steps); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %q\nwant %q", got, want)
+	}
+}
+
+func TestParseGridBlockErrors(t *testing.T) {
+	for _, tt := range []struct {
+		src   string
+		line  int
+		cause errs.Code
+		msg   string
+	}{
+		{"px 0,0 ink\ngrid 0,0 <<\noo\n", 2, errs.Usage, "the grid block is not closed"},
+		{"grid 0,0 <<EOF\noo\nEOF\n", 1, errs.Usage, `a grid block starts with a bare <<, not "<<EOF"`},
+		{"rect 0,0 2,2 ink <<\noo\n>>\n", 1, errs.Usage, "rect takes no grid block"},
+		{"grid 0,0 oo <<\noo\n>>\n", 1, errs.Usage, `unexpected argument "oo"`},
+		{"\ngrid 0,0 <<\noo\no,o\n>>\n", 2, errs.InvalidColor, `row 2 has a ","`},
+		{"grid 0,0 <<\n\n>>\n", 1, errs.Usage, "empty grid"},
+	} {
+		t.Run(tt.msg, func(t *testing.T) {
+			_, err := Parse(tt.src, ops.Default, false)
+			e, _ := errors.AsType[*errs.Error](err)
+			if e == nil || e.Code != errs.ScriptError || e.Line != tt.line || e.Cause != tt.cause || !strings.Contains(e.Message, tt.msg) {
+				t.Fatalf("got %#v", err)
+			}
+		})
+	}
+}
+
+// TestParseGridBlockKeepGoing: a block is consumed even when its line
+// can't be read, so its rows are never read as ops.
+func TestParseGridBlockKeepGoing(t *testing.T) {
+	steps, err := Parse("grd 0,0 <<\npx 1,1 ink\n>>\npx 2,2 ink\ngrid 0,0 <<\noo\n", ops.Default, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"--- ", "1: grd 0,0 <<", "4: px 2,2 ink", "5: grid 0,0 <<"}
+	if got := lines(steps); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}

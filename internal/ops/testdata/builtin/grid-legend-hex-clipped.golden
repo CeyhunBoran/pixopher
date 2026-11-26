@@ -1,0 +1,25 @@
+$ grid 7,7 ab,ba --legend 'a=#ff0000 b=#0000ff'
+changed 1  bbox 7,7 1,1  meta true
+--- document
+pixopher = 1
+size = [8, 8]
+rev = 0
+key_width = 1
+
+[palette]
+"." = ["#00000000", "transparent"]
+a = ["#ff0000", "auto_ff0000"]
+
+[[layers]]
+name = "main"
+
+[[frames]]
+duration_ms = 100
+
+[[cels]]
+layer = "main"
+frame = 0
+origin = [7, 7]
+grid = '''
+a
+'''

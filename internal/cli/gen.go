@@ -129,6 +129,14 @@ func (st *state) runOp(cmd *cobra.Command, op ops.Op, common []ops.ArgSpec, toke
 		return st.runCreate(cmd, op.(ops.Creator), c, pos, flags)
 	}
 	args, path, err := st.resolve(spec.Args, c, pos, flags)
+	if g, ok := gridArg(spec); ok && ops.Missing(err, g) {
+		// A grid that is not on the command line comes from stdin (D64).
+		var tok string
+		if tok, err = readGrid(cmd, g); err != nil {
+			return err
+		}
+		args, path, err = st.resolve(spec.Args, c, append(pos, tok), flags)
+	}
 	if err != nil {
 		return err
 	}
@@ -138,6 +146,30 @@ func (st *state) runOp(cmd *cobra.Command, op ops.Op, common []ops.ArgSpec, toke
 	call := ops.Call{Op: op.(ops.Mutator), Args: args, Line: ops.Format(spec, args)}
 	res, err := st.cfg.backend.Apply(path, []engine.Step{{Msg: c.String("message"), Calls: []ops.Call{call}}}, st.options(c))
 	return st.report(cmd, res, err)
+}
+
+// gridArg returns the name of spec's grid positional, if it has one.
+func gridArg(spec ops.Spec) (string, bool) {
+	for _, a := range spec.Args {
+		if !a.Flag && a.Kind == ops.KindGrid {
+			return a.Name, true
+		}
+	}
+	return "", false
+}
+
+// readGrid reads a letter grid, one row per line, from stdin and returns
+// it as one token (ops.GridText).
+func readGrid(cmd *cobra.Command, name string) (string, error) {
+	data, err := io.ReadAll(cmd.InOrStdin())
+	if err != nil {
+		return "", (&errs.Error{Code: errs.IO, Message: err.Error()}).WithArg(name)
+	}
+	tok, err := ops.GridText(string(data))
+	if e, ok := errors.AsType[*errs.Error](err); ok {
+		e.Arg = name
+	}
+	return tok, err
 }
 
 // wantsHelp reports whether -h or --help comes before any `--`.

@@ -15,16 +15,26 @@ import (
 // quoting. It reads what ops.Quote writes. An unterminated quote or a
 // trailing backslash is a usage error.
 func Fields(line string) ([]string, error) {
+	out, _, err := fields(line)
+	return out, err
+}
+
+// fields is Fields that also reports, for each token, whether it was
+// written bare: without quotes or backslashes.
+func fields(line string) ([]string, []bool, error) {
 	var (
-		out []string
-		tok strings.Builder
-		in  bool // inside a token, which may be empty ('')
+		out  []string
+		bare []bool
+		tok  strings.Builder
+		in   bool // inside a token, which may be empty ('')
+		lit  bool // the token has quotes or a backslash
 	)
 	end := func() {
 		if in {
 			out = append(out, tok.String())
+			bare = append(bare, !lit)
 			tok.Reset()
-			in = false
+			in, lit = false, false
 		}
 	}
 	for i := 0; i < len(line); i++ {
@@ -33,15 +43,15 @@ func Fields(line string) ([]string, error) {
 		case c == ' ' || c == '\t':
 			end()
 		case c == '#' && !in && (i+1 == len(line) || line[i+1] == ' ' || line[i+1] == '\t'):
-			return out, nil
+			return out, bare, nil
 		case c == '\'':
 			j := strings.IndexByte(line[i+1:], '\'')
 			if j < 0 {
-				return nil, errs.New(errs.Usage, "unterminated ' quote").WithHint("close the quote on the same line")
+				return nil, nil, errs.New(errs.Usage, "unterminated ' quote").WithHint("close the quote on the same line")
 			}
 			tok.WriteString(line[i+1 : i+1+j])
 			i += j + 1
-			in = true
+			in, lit = true, true
 		case c == '"':
 			j := i + 1
 			for ; j < len(line) && line[j] != '"'; j++ {
@@ -51,22 +61,22 @@ func Fields(line string) ([]string, error) {
 				tok.WriteByte(line[j])
 			}
 			if j == len(line) {
-				return nil, errs.New(errs.Usage, `unterminated " quote`).WithHint("close the quote on the same line")
+				return nil, nil, errs.New(errs.Usage, `unterminated " quote`).WithHint("close the quote on the same line")
 			}
 			i = j
-			in = true
+			in, lit = true, true
 		case c == '\\':
 			if i+1 == len(line) {
-				return nil, errs.New(errs.Usage, "trailing backslash").WithHint("a line can't continue on the next one")
+				return nil, nil, errs.New(errs.Usage, "trailing backslash").WithHint("a line can't continue on the next one")
 			}
 			i++
 			tok.WriteByte(line[i])
-			in = true
+			in, lit = true, true
 		default:
 			tok.WriteByte(c)
 			in = true
 		}
 	}
 	end()
-	return out, nil
+	return out, bare, nil
 }

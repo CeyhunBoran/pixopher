@@ -55,8 +55,7 @@ func TestEveryOpHasGolden(t *testing.T) {
 		"palette list": "TestPaletteListGolden",
 	}
 	for _, tt := range builtinCases {
-		last := strings.ReplaceAll(tt.lines[len(tt.lines)-1], "'", "")
-		c, err := call(t, last)
+		c, err := call(t, tt.lines[len(tt.lines)-1])
 		if err != nil {
 			t.Fatalf("%s: %v", tt.name, err)
 		}

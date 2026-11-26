@@ -1008,3 +1008,51 @@ pacing when a server runs.
 *Consequences*: in M7, events go out before the transaction commits, so a
 run that later fails has shown strokes that never land. The server must
 tell viewers to reload in that case.
+
+**D64: Grid paint details** (2026-11-27)
+- **One-token form**: a grid argument (`KindGrid`) is one token, its rows
+  joined by `,` (reserved, so never part of a key): `grid 4,2
+  ..oo..,.oRRo.`. This is the canonical form in logged lines, so a run
+  with grid blocks replays from the log alone, and it also works on the
+  command line and in scripts. On the CLI, a grid that is not given is
+  read from stdin, one row per line. In a script, a line that ends in a
+  bare (unquoted) `<<` starts a block: the lines after it, up to one that
+  is exactly `>>`, are the rows. `---` and `#` lines inside a block are
+  rows. A row that is `>>` can't be written in a block (use the one-token
+  form), a one-row grid that starts with `<<` must be quoted, and
+  `<<EOF` is a `usage` error that points at bare `<<`. Block and stdin
+  rows are trimmed of spaces, tabs and `\r`, blank lines before the first
+  row and after the last are dropped, and a row with a `,` is an
+  `invalid_color` error. An unclosed block is a `usage` error on the
+  `grid` line, and it takes the rest of the script with it. The block is
+  consumed even when its line fails, so `--continue-on-error` never reads
+  rows as ops. Only ops with a grid argument take a block.
+- **Cells**: a cell is `key_width` characters. A `--legend` letter comes
+  first, then `.` (left alone, or erased with `--opaque`), `_` (always
+  erased), then a palette key. A cell with a reserved character (`+` from
+  `show --composite`, `#`, `-`, ...) is `invalid_color`, and any other
+  unknown cell is `unknown_color`. Nothing is skipped or guessed.
+- **Shape**: rows are checked before cells. A row that isn't a whole
+  number of cells, or not as wide as row 1, is `grid_mismatch`. A grid
+  with no cells is a `usage` error. The grid may reach off the canvas and
+  is clipped, like every shape (D48).
+- **Errors**: grid errors have `arg` `grid` and `details` `{"row": n}`,
+  plus `"col": n` (in cells) when one cell is at fault, both from 1. In a
+  `run`, the `script_error` line is the `grid` line, so `details.row` is
+  what points at the row inside the block.
+- **Legend**: `letter=color` pairs separated by spaces. A letter is one
+  cell that could be a palette key (not `.`, `_` or a reserved
+  character), given once; bad pairs are `usage` errors with `arg`
+  `legend`. Letters shadow palette keys for the call. Colors use the full
+  syntax and resolve against the palette, all of them before painting, so
+  a bad one fails even when no cell uses it; `.` paints transparent, as in
+  `px`. Raw hex colors get their auto entry on their first pixel on the
+  canvas, in row-major order, and letters with the same hex share one
+  entry. The legend is logged as given (quoted), not normalized: spacing
+  changes only the log text, never the result.
+- **Symmetry** applies to grid paint like every draw op once `sym` lands.
+*Why*: one token per grid keeps D34's one-line canonical form, the log's
+`ops` and captions single lines, and `,` is the only reserved character
+that reads naturally as a row break. Failing on every cell that is not a
+key means a pasted composite grid can't paint wrong colors (D57). Rows
+counted from 1 match script line numbers.

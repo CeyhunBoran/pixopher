@@ -18,7 +18,7 @@ This doc specifies the behavior of the drawing ops. The command syntax is in
 | `replace` [done] | Replaces one palette entry with another on the target cel. [M2] `--region %r` limits it to a region. |
 | `gradient` | Fills a rect by walking a ramp along a direction. With `--dither`, the boundaries between steps use an ordered dither. |
 | `dither` | Ordered dither of two colors at a level, for textures and transitions. |
-| `grid` | Paints a letter grid at an offset. See [agent-workflow.md](agent-workflow.md#grid-paint). |
+| `grid` [done] | Paints a letter grid at an offset. See [agent-workflow.md](agent-workflow.md#grid-paint). |
 
 All shapes clip to the canvas and respect `--mask`, layer lock and symmetry
 (layer lock is checked from M1; mask and symmetry arrive in M2). A raw hex

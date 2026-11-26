@@ -76,6 +76,8 @@ var builtinUndoCases = []struct {
 	{"ramp-add", "potion", []string{"ramp add dark o r g"}},
 	{"ramp-add-base", "potion", []string{"ramp add hot o r R w --base name:liquid"}},
 	{"ramp-rm", "potion", []string{"ramp rm glass"}},
+	{"grid", "potion", []string{"grid 5,1 oG.g,_RRo,.ww. --opaque"}},
+	{"grid-legend-hex", "ink", []string{"grid 6,6 a.,_a --legend a=#ff0000"}},
 }
 
 // TestBuiltinUndoIdentity: for every mutating op, applying it with the

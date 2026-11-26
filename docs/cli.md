@@ -100,7 +100,8 @@ goes to stderr:
 ```
 
 `hint` and `arg` are omitted when empty. Some codes add a `details` object
-(`undo_conflict`, see [History](#history-m1-m7)). A `script_error` from
+(`undo_conflict`, see [History](#history-m1-m7); grid paint errors give
+`{"row": n}` and, for one bad cell, `"col": n`, both from 1, D64). A `script_error` from
 `run` adds `line`, the script line at fault, and `cause`, the code of the
 error it wraps; its message starts with `line <n>: <cause>: ` and the hint
 and `arg` are the wrapped error's (D62):
@@ -225,7 +226,7 @@ pxo poly <x,y> <x,y> <x,y> ... <color>            filled polygon (even-odd)
 pxo fill <x,y> <color> [--contiguous=true] [--8]   [done]  ([M4] --sample layer|composite)
 pxo erase <rect|%region|x,y>                     to transparent   [done]  ([M2] %region)
 pxo replace <from> <to>                          [done]  ([M2] --region %r)
-pxo grid <x,y> [--legend "a=skin b=ink"] <<'EOF' ... EOF    paint a letter grid (see agent-workflow.md)
+pxo grid <x,y> [grid] [--legend "a=skin b=ink"] [--opaque] <<'EOF' ... EOF   paint a letter grid (see agent-workflow.md)   [done]
 pxo stamp <part> <x,y|@anchor> [--flip h|v] [--rot 90|180|270] [--align tl|c|bc]
 pxo gradient <rect> <ramp> [--dir down|right|...] [--dither bayer4|checker|none]
 pxo dither <rect|%r> <colorA> <colorB> [--pattern checker|bayer2|bayer4|bayer8] [--level 0.5]

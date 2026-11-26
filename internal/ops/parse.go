@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -204,6 +205,13 @@ func missing(a ArgSpec) error {
 	return errs.New(errs.Usage, "missing argument <%s>", a.Name).WithArg(a.Name)
 }
 
+// Missing reports whether err is Build's error for the missing required
+// positional called name. The CLI then reads a grid from stdin.
+func Missing(err error, name string) bool {
+	e, ok := errors.AsType[*errs.Error](err)
+	return ok && e.Code == errs.Usage && e.Arg == name && e.Message == "missing argument <"+name+">"
+}
+
 // parseValue parses the value of a from the start of tokens and returns how
 // many tokens it used: one, or two for the `x,y w,h` rect form.
 func parseValue(a ArgSpec, tokens []string) (any, int, error) {
@@ -278,8 +286,12 @@ func parseValue(a ArgSpec, tokens []string) (any, int, error) {
 		}
 		return r, 1, nil
 	}
-	// KindGrid: letter grid blocks arrive with grid paint and batch scripts.
-	return nil, 0, errs.New(errs.Usage, "grid arguments are not supported yet").WithArg(a.Name)
+	// KindGrid: rows joined by GridSep. The op checks the shape and the
+	// cells against the document (D64).
+	if t == "" {
+		return nil, 0, emptyGrid().WithArg(a.Name)
+	}
+	return t, 1, nil
 }
 
 var kindForms = map[ArgKind]string{
