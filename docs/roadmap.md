@@ -84,6 +84,7 @@ release is downloadable.
 
 - [ ] `layer` and `frame` command groups, `tag`, opacity/blend, linked cels
 - [ ] Compositing in `render`
+- [ ] `--layer` and `--composite` for `show`, `get` and `stats`, with blended pixels as `+` (D57)
 - [ ] `watch`: layer solo, animation playback, onion skin
 - [ ] Export: GIF, spritesheet + JSON atlas (incl. aseprite-compatible), SVG, JSON dump
 - [ ] Output path placeholders and multi-input export
@@ -143,6 +144,7 @@ using only MCP tools, with viewers updating live.
 - [ ] `import` PNG/GIF/JPEG/WebP with `keep` / `quantize` / `doc` palettes, `--pixelate`, `--detect-scale`, `--frames`
 - [ ] Reference layers (locked, excluded from export), `--ramps auto`
 - [ ] `palette load/save` for `.hex .gpl .pal .ase`
+- [ ] `palette widen`, and width-2 keys for new documents that need over 82 colors (D56)
 
 ## M10: Libraries and helpers → release 0.6
 

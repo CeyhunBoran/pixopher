@@ -49,6 +49,7 @@ pxo palette rm k [--replace o]         # remove; pixels using it are remapped or
 pxo palette load endesga32             # built-in or file (.hex .gpl .pal .ase .png strip)
 pxo palette save my.gpl
 pxo palette tidy                       # merge duplicates, name auto entries, drop unused (with --unused)
+pxo palette widen                      # key width 1 → 2, doubling every key (o → oo), D56   [M9]
 pxo ramp add skin S s t [--base s]     # [done]
 pxo ramp gen skin '#e0a070' --steps 4 --hue-shift 12 --keys "S s t T"
 pxo ramp rm skin                       # [done]

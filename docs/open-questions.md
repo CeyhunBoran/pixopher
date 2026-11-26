@@ -3,13 +3,6 @@
 Questions that are not decided yet. When one is resolved, move the answer to
 [decisions.md](decisions.md) and delete it here.
 
-## Format and history
-
-- **Two-character keys**: is automatic switching to `key_width = 2` enough, or
-  should we cap palettes at 82 colors and fail? Key width 2 can already be
-  read and written, but nothing switches to it yet (`palette_full`). If we
-  switch, how are the existing one-character keys renamed?
-
 ## Engine
 
 - **Windows**: are locking and atomic rename reliable enough? Should the
@@ -24,9 +17,6 @@ Questions that are not decided yet. When one is resolved, move the answer to
   MIT-compatible? Verify before M9.
 - **kitty graphics inside tmux**: is passthrough detection reliable enough, or
   should tmux sessions default to halfblock?
-- **`show --composite`**: palette keys can't show opacity or blending.
-  Should a blended pixel print the key of the closest palette color, the
-  top opaque layer's key, or a marker? Decide in M4 (D55).
 - **Caption font for timelapse**: ship a small free bitmap font. Which one,
   and what license?
 

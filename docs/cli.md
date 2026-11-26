@@ -297,6 +297,10 @@ colors   3
    1  w  #f4f4f4  white
 ```
 
+With `--composite` [M4], a pixel whose composite color is not exactly a
+palette color shows as `+`. `get` then gives its color without a key, and
+`stats` counts it as `blended` (D57).
+
 ### Batch
 
 ```

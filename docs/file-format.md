@@ -100,8 +100,8 @@ grid = '''
   versions with `unsupported_version`.
 - `size` (required): `[w, h]`, each value from 1 to 1024.
 - `rev`: integer, starts at 0.
-- `key_width`: 1 by default. Documents will switch to 2 automatically when
-  the palette outgrows single-character keys (**[planned]**, see below).
+- `key_width`: 1 by default, or 2 for palettes that need more than 82 keys
+  (see below).
 
 ### Palette keys
 
@@ -115,8 +115,10 @@ grid = '''
     is never stored in a cel.
 
   That leaves 82 keys (`A-Z a-z 0-9` plus 20 punctuation characters).
-- When a palette needs more keys, the document is rewritten with
-  `key_width = 2` (keys like `a1`, `Zz`). Then `..` is transparent and `__`
+- Bigger palettes use `key_width = 2` (keys like `a1`, `Zz`). An existing
+  document never switches on its own: `palette widen` [M9] rewrites it,
+  doubling every key (`o` → `oo`). A command that creates a document with a
+  bigger palette may start at width 2 (D56). Then `..` is transparent and `__`
   erases, and keys must not contain reserved characters. This is rare for
   pixel art.
 - An entry is `key = [color, name]`, and both are required. Colors are
@@ -128,8 +130,8 @@ grid = '''
   entry**: a generated key with a name like `auto_3f2a1b`. Grids therefore
   only ever contain keys. `lint` warns about auto entries
   (`off-palette`), and `palette tidy` merges or names them.
-  Automatic widening to `key_width = 2` is **[planned]**. Until then, a
-  full palette fails with `palette_full`.
+  When no key is free, the command fails with `palette_full`. Documents are
+  never widened automatically (D56).
 
 ### Ramps
 

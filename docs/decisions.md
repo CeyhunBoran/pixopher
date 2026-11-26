@@ -776,3 +776,57 @@ into the next command. A JSON shape that flags don't change is simpler to
 parse.
 *Consequences*: M4 adds `--layer` and `--composite` to all three and
 decides what `show --composite` prints for blended pixels.
+
+**D56: No automatic key widening; `palette widen` instead** (2026-11-26)
+Supersedes D28's widening line and the automatic switch planned in
+file-format.md. Settles the "two-character keys" open question.
+- **Existing documents never widen on their own.** When no free key is
+  left, the command fails with `palette_full`, as it does now. Once
+  `palette widen` exists, the hint names it next to the current
+  suggestions.
+- **`palette widen`** (M9) is an explicit, undoable op that switches a
+  key-width-1 document to key width 2 by doubling every key (`o` → `oo`,
+  `.` → `..`). Doubled keys never contain reserved characters and keep the
+  first character an agent remembers. Pixels are untouched, because cels
+  store indices (D29), so the step is a meta delta only. Its undo and redo
+  use D54's whole-header fallback because the key width differs. An older
+  palette step can't be undone past a widen until the widen itself is
+  undone. Width 2 is never narrowed back except by undoing the widen.
+- **New documents** can start at key width 2 when the command that creates
+  them needs more than 82 entries (`import`, a palette file in `new`).
+  They have no history or memorized keys that could break.
+*Why*: a silent rename changes the meaning of everything that already
+names keys: the agent's working memory, the `ops` lines in the log (replay,
+timelapse, captions) and D54's key-based undo. Over 82 colors is rare in
+hand-made pixel art (common palettes stop at 64). It mostly happens on
+import, where creating the document at width 2 is safe. A full palette is
+also often a signal to reduce colors, not to grow.
+*Consequences*: `AutoEntry` keeps returning `palette_full`. Replay runs
+`palette widen` in log order, so the ops before it keep their one-character
+keys and stay valid.
+
+**D57: Blended composite pixels show as `+`** (2026-11-26)
+Settles the `show --composite` open question that D55 left for M4.
+- **Same color as export**: `--composite` composites visible layers with
+  their opacity and blend mode, exactly as `render` and `export` do. A
+  pixel whose composite color equals a palette entry's color exactly prints
+  that entry's key (the first in palette order if several share it). A fully
+  transparent one prints `.`. Any other pixel prints `+` (`++` at key
+  width 2).
+- **`show`**: `--legend` ends with `+ blended` when one is shown. The JSON
+  `legend` gets `"+": {"name": "blended"}` with no `color`, so every
+  symbol in `rows` is still explained.
+- **`get --composite`** on a blended pixel gives `{"ok", "at", "color"}`
+  with the composite color and no `key` or `name`. Its human form is
+  `+  #c08070  blended`.
+- **`stats --composite`** counts blended pixels in `filled` and as
+  `blended` (omitted when 0). They are not listed in `colors`.
+*Why*: the grid must not claim a key the exported image doesn't contain.
+Nearest-color would quietly lie, and the top opaque layer would hide the
+overlay. Agents act on what the grid shows, so an honest "not a palette
+color" plus a cheap `get` beats a readable but wrong key. `+` is reserved,
+so it can't be confused with a key, and pasting such a grid into grid paint
+fails loudly instead of painting the wrong color.
+*Consequences*: in finished pixel art semi-transparent layers are usually
+baked into palette colors, so `+` mostly appears mid-work, and a future
+flatten or lint step can point at exactly those pixels.
