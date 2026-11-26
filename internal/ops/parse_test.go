@@ -63,7 +63,7 @@ func TestParse(t *testing.T) {
 			spec: shapeSpec,
 			in:   "1,1 1,1,1,1 -- -x",
 			want: Args{"at": doc.Point{X: 1, Y: 1}, "box": doc.Rect{X: 1, Y: 1, W: 1, H: 1}, "color": "-x", "pad": 0, "smooth": true, "width": 1, "dir": "down"},
-			line: "shape 1,1 1,1,1,1 -x",
+			line: "shape -- 1,1 1,1,1,1 -x",
 		},
 		{
 			spec: repeatSpec,
@@ -267,5 +267,36 @@ func TestParseGridUnsupported(t *testing.T) {
 	_, err := Parse([]ArgSpec{{Name: "g", Kind: KindGrid, Required: true}}, []string{"ab"})
 	if errs.CodeOf(err) != errs.Usage {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestFormatDashPositional(t *testing.T) {
+	// A positional that looks like a flag goes after `--` (D41); a negative
+	// number does not count.
+	s := Spec{Name: "x", Group: "g", Summary: "s", Args: []ArgSpec{
+		{Name: "name", Kind: KindString, Required: true},
+		{Name: "at", Kind: KindPoint},
+		{Name: "fill", Kind: KindBool, Flag: true},
+	}}
+	for _, tt := range []struct {
+		args Args
+		line string
+	}{
+		{Args{"name": "-glow", "at": doc.Point{X: 1, Y: 2}, "fill": true}, "x --fill -- -glow 1,2"},
+		{Args{"name": "-glow"}, "x -- -glow"},
+		{Args{"name": "glow", "at": doc.Point{X: -1, Y: -2}, "fill": true}, "x glow -1,-2 --fill"},
+	} {
+		line := Format(s, tt.args)
+		if line != tt.line {
+			t.Errorf("Format = %q, want %q", line, tt.line)
+			continue
+		}
+		got, err := Parse(s.Args, strings.Fields(line)[1:])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(got, tt.args) {
+			t.Errorf("%s parsed back to %#v", line, got)
+		}
 	}
 }

@@ -2,6 +2,7 @@ package ops
 
 import (
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -10,7 +11,9 @@ import (
 
 // Format returns the canonical script line for a call of the op described
 // by spec, such as "rect 6,1,4,3 ink --outline". Positionals come first in
-// spec order, then flags in spec order. Arguments that are absent or equal
+// spec order, then flags in spec order; when a positional looks like a flag
+// (`-` and a non-digit), the flags come first and `--` goes before the
+// positionals (D41). Arguments that are absent or equal
 // to their default are left out (a trailing optional positional only; one
 // in the middle keeps its place). Values use their canonical text: points
 // `x,y`, sizes `w,h`, rects `x,y,w,h`, and shell-style single quotes for
@@ -58,7 +61,7 @@ func Format(spec Spec, a Args) string {
 			keep = len(pos)
 		}
 	}
-	parts := append([]string{spec.Name}, pos[:keep]...)
+	var parts []string
 	for _, s := range spec.Args {
 		v, ok := a[s.Name]
 		if !s.Flag || !ok {
@@ -75,7 +78,15 @@ func Format(spec Spec, a Args) string {
 			parts = append(parts, "--"+s.Name, text)
 		}
 	}
-	return strings.Join(parts, " ")
+	pos = pos[:keep]
+	if slices.ContainsFunc(pos, isFlag) {
+		// A positional that looks like a flag goes after `--`, so the line
+		// parses back the same (D41).
+		parts = append(append(parts, "--"), pos...)
+	} else {
+		parts = append(pos, parts...)
+	}
+	return strings.Join(append([]string{spec.Name}, parts...), " ")
 }
 
 // isDefault reports whether text is the canonical text of s's default. A
