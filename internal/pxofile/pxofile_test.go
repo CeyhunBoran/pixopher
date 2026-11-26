@@ -60,18 +60,23 @@ func TestCanonical(t *testing.T) {
 }
 
 // canonicalFiles are files that must already be in canonical form: the
-// canonical goldens here and every .pxo under the repository's testdata/.
+// canonical goldens here, every .pxo under the repository's testdata/, and
+// the golden documents the engine and CLI tests write. The canon inputs
+// (*.in.pxo) are not canonical on purpose, so directories are listed
+// rather than the whole repository walked.
 func canonicalFiles(t *testing.T) []string {
 	t.Helper()
 	files, _ := filepath.Glob("testdata/canon/*.golden.pxo")
-	err := filepath.WalkDir("../../testdata", func(path string, e os.DirEntry, err error) error {
-		if err == nil && !e.IsDir() && strings.HasSuffix(path, ".pxo") {
-			files = append(files, path)
+	for _, dir := range []string{"../../testdata", "../engine/testdata", "../cli/testdata"} {
+		err := filepath.WalkDir(dir, func(path string, e os.DirEntry, err error) error {
+			if err == nil && !e.IsDir() && strings.HasSuffix(path, ".pxo") {
+				files = append(files, path)
+			}
+			return err
+		})
+		if err != nil {
+			t.Fatal(err)
 		}
-		return err
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
 	return files
 }

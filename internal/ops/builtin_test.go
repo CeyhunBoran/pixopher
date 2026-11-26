@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -119,64 +120,68 @@ func call(t testing.TB, line string) (Call, error) {
 	return Call{Op: op.(Mutator), Args: args, Line: Format(op.Spec(), args)}, nil
 }
 
+// builtinCases are TestBuiltinGolden's cases. A case covers the op of its
+// last line; earlier lines set it up (TestEveryOpHasGolden).
+var builtinCases = []struct {
+	name, fixture string
+	lines         []string
+}{
+	{"clear", "potion", []string{"clear"}},
+	{"clear-color", "potion", []string{"clear glass_light"}},
+	{"clear-hex", "blank", []string{"clear '#123456'"}},
+	{"px", "potion", []string{"px 0,0 ink"}},
+	{"px-group", "potion", []string{"px 0,15 ink 1,15 glass:-1 6,0 . 0,15 liquid+1"}},
+	{"px-hex-twice", "blank", []string{"px 1,1 #ff0000 2,2 #ff0000 3,3 #ff000080"}},
+	{"line", "potion", []string{"line 0,15 15,9 ink"}},
+	{"line-steep", "potion", []string{"line 3,15 5,0 glass"}},
+	{"line-clipped", "potion", []string{"line -4,-2 20,10 ink"}},
+	{"line-width2", "potion", []string{"line 2,12 12,8 liquid --width 2"}},
+	{"line-width3-hex", "blank", []string{"line 1,1 6,4 #00ff00 --width 3"}},
+	{"line-off-canvas-hex", "blank", []string{"line -5,-5 -1,-9 #ff0000"}},
+	{"rect", "potion", []string{"rect 2,9 5,4 glass"}},
+	{"rect-outline", "potion", []string{"rect 1,1,14,14 ink --outline"}},
+	{"rect-clipped-outline", "potion", []string{"rect -2,-2 6,6 liquid --outline"}},
+	{"rect-fill-false", "potion", []string{"rect 0,0 16,16 shine --outline=false"}},
+	{"fill", "potion", []string{"fill 7,3 shine"}},
+	{"fill-8", "potion", []string{"fill 7,3 shine --8"}},
+	{"fill-ring", "potion", []string{"fill 6,1 liquid"}},
+	{"fill-same", "potion", []string{"fill 6,1 o"}},
+	{"fill-global", "potion", []string{"fill 0,0 G --contiguous=false"}},
+	{"fill-hex", "blank", []string{"px 2,0 #111111 2,1 #111111 1,2 #111111 0,2 #111111", "fill 0,0 '#0000ff'"}},
+	{"erase", "potion", []string{"erase 6,1"}},
+	{"erase-rect", "potion", []string{"erase 4,0 8,2"}},
+	{"erase-clipped", "potion", []string{"erase -3,-3,10,5"}},
+	{"replace", "potion", []string{"replace o liquid"}},
+	{"replace-transparent", "potion", []string{"replace . '#202020'"}},
+	{"replace-unknown-hex", "potion", []string{"replace #abcdef ink"}},
+	{"replace-same", "potion", []string{"replace ink o"}},
+	{"default-draw", "default", []string{"px 0,0 ink 1,0 warm 2,0 green+1 3,0 gray:0 4,0 #ffcd75"}},
+	{"palette-add", "potion", []string{"palette add k #ffcc99 skin"}},
+	{"palette-add-alpha", "blank", []string{"palette add k #ff000080 glow"}},
+	{"palette-set", "potion", []string{"palette set glass #00ff00"}},
+	{"palette-set-key", "potion", []string{"palette set key:w #ffffff"}},
+	{"palette-set-same", "potion", []string{"palette set ink #1a1c2c"}},
+	{"palette-rename", "potion", []string{"palette rename ink outline"}},
+	{"palette-rename-same", "potion", []string{"palette rename o ink"}},
+	{"palette-rename-variant", "variants", []string{"palette rename extra spare"}},
+	{"palette-rm-unused", "potion", []string{"ramp rm liquid", "palette rm r"}},
+	{"palette-rm-replace", "potion", []string{"ramp rm glass", "palette rm g --replace G"}},
+	{"palette-rm-transparent", "potion", []string{"ramp rm glass", "palette rm G --replace ."}},
+	{"palette-rm-linked", "linked", []string{"ramp rm glass", "palette rm o --replace R"}},
+	{"palette-rm-locked", "used", []string{"palette rm red --replace blue"}},
+	{"ramp-add", "potion", []string{"ramp add dark o r g"}},
+	{"ramp-add-base", "potion", []string{"ramp add hot o r R w --base name:liquid"}},
+	{"ramp-rm", "potion", []string{"ramp rm glass"}},
+}
+
 // TestBuiltinGolden applies each case's lines as one step, compares the
 // canonical lines, the change and the resulting document with a golden
 // file, and checks that undoing the change, decoded from its history log
 // encoding, gives back the original document byte for byte, and that
-// redoing it gives the result again.
+// redoing it gives the result again. The result also round-trips:
+// parse then serialize gives the same bytes and an equal model.
 func TestBuiltinGolden(t *testing.T) {
-	tests := []struct {
-		name, fixture string
-		lines         []string
-	}{
-		{"clear", "potion", []string{"clear"}},
-		{"clear-color", "potion", []string{"clear glass_light"}},
-		{"clear-hex", "blank", []string{"clear '#123456'"}},
-		{"px", "potion", []string{"px 0,0 ink"}},
-		{"px-group", "potion", []string{"px 0,15 ink 1,15 glass:-1 6,0 . 0,15 liquid+1"}},
-		{"px-hex-twice", "blank", []string{"px 1,1 #ff0000 2,2 #ff0000 3,3 #ff000080"}},
-		{"line", "potion", []string{"line 0,15 15,9 ink"}},
-		{"line-steep", "potion", []string{"line 3,15 5,0 glass"}},
-		{"line-clipped", "potion", []string{"line -4,-2 20,10 ink"}},
-		{"line-width2", "potion", []string{"line 2,12 12,8 liquid --width 2"}},
-		{"line-width3-hex", "blank", []string{"line 1,1 6,4 #00ff00 --width 3"}},
-		{"line-off-canvas-hex", "blank", []string{"line -5,-5 -1,-9 #ff0000"}},
-		{"rect", "potion", []string{"rect 2,9 5,4 glass"}},
-		{"rect-outline", "potion", []string{"rect 1,1,14,14 ink --outline"}},
-		{"rect-clipped-outline", "potion", []string{"rect -2,-2 6,6 liquid --outline"}},
-		{"rect-fill-false", "potion", []string{"rect 0,0 16,16 shine --outline=false"}},
-		{"fill", "potion", []string{"fill 7,3 shine"}},
-		{"fill-8", "potion", []string{"fill 7,3 shine --8"}},
-		{"fill-ring", "potion", []string{"fill 6,1 liquid"}},
-		{"fill-same", "potion", []string{"fill 6,1 o"}},
-		{"fill-global", "potion", []string{"fill 0,0 G --contiguous=false"}},
-		{"fill-hex", "blank", []string{"px 2,0 #111111 2,1 #111111 1,2 #111111 0,2 #111111", "fill 0,0 '#0000ff'"}},
-		{"erase", "potion", []string{"erase 6,1"}},
-		{"erase-rect", "potion", []string{"erase 4,0 8,2"}},
-		{"erase-clipped", "potion", []string{"erase -3,-3,10,5"}},
-		{"replace", "potion", []string{"replace o liquid"}},
-		{"replace-transparent", "potion", []string{"replace . '#202020'"}},
-		{"replace-unknown-hex", "potion", []string{"replace #abcdef ink"}},
-		{"replace-same", "potion", []string{"replace ink o"}},
-		{"default-draw", "default", []string{"px 0,0 ink 1,0 warm 2,0 green+1 3,0 gray:0 4,0 #ffcd75"}},
-		{"palette-add", "potion", []string{"palette add k #ffcc99 skin"}},
-		{"palette-add-alpha", "blank", []string{"palette add k #ff000080 glow"}},
-		{"palette-set", "potion", []string{"palette set glass #00ff00"}},
-		{"palette-set-key", "potion", []string{"palette set key:w #ffffff"}},
-		{"palette-set-same", "potion", []string{"palette set ink #1a1c2c"}},
-		{"palette-rename", "potion", []string{"palette rename ink outline"}},
-		{"palette-rename-same", "potion", []string{"palette rename o ink"}},
-		{"palette-rename-variant", "variants", []string{"palette rename extra spare"}},
-		{"palette-rm-unused", "potion", []string{"ramp rm liquid", "palette rm r"}},
-		{"palette-rm-replace", "potion", []string{"ramp rm glass", "palette rm g --replace G"}},
-		{"palette-rm-transparent", "potion", []string{"ramp rm glass", "palette rm G --replace ."}},
-		{"palette-rm-linked", "linked", []string{"ramp rm glass", "palette rm o --replace R"}},
-		{"palette-rm-locked", "used", []string{"palette rm red --replace blue"}},
-		{"ramp-add", "potion", []string{"ramp add dark o r g"}},
-		{"ramp-add-base", "potion", []string{"ramp add hot o r R w --base name:liquid"}},
-		{"ramp-rm", "potion", []string{"ramp rm glass"}},
-	}
-	for _, tt := range tests {
+	for _, tt := range builtinCases {
 		t.Run(tt.name, func(t *testing.T) {
 			d := fixture(t, tt.fixture)
 			before := serialize(t, d)
@@ -202,6 +207,7 @@ func TestBuiltinGolden(t *testing.T) {
 			fmt.Fprintf(&out, "changed %d  bbox %d,%d %d,%d  meta %t\n--- document\n%s",
 				len(ch.Pixels), ch.BBox.X, ch.BBox.Y, ch.BBox.W, ch.BBox.H, ch.Meta != nil, after)
 			golden.Check(t, filepath.Join("testdata", "builtin", tt.name+".golden"), out.Bytes())
+			roundTrip(t, after)
 
 			undo := decode(t, ch, d.W)
 			Revert(d, undo)
@@ -213,6 +219,27 @@ func TestBuiltinGolden(t *testing.T) {
 				t.Fatalf("redo differs\n--- got\n%s\n--- want\n%s", got, after)
 			}
 		})
+	}
+}
+
+// roundTrip checks that data, a serialized document, parses and serializes
+// back to the same bytes, and that parsing those again gives an equal model.
+func roundTrip(t testing.TB, data []byte) {
+	t.Helper()
+	d, err := pxofile.Parse(data)
+	if err != nil {
+		t.Fatalf("result does not parse: %v", err)
+	}
+	again := serialize(t, d)
+	if !bytes.Equal(again, data) {
+		t.Fatalf("serialize is not stable\n%s", golden.Diff(again, data))
+	}
+	d2, err := pxofile.Parse(again)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(d, d2) {
+		t.Fatalf("model changed after a round trip:\n%+v\n%+v", d, d2)
 	}
 }
 
@@ -469,29 +496,31 @@ func observeFixture(t *testing.T, name string) *doc.Doc {
 	return fixture(t, name)
 }
 
+// observeCases are TestObserveGolden's cases.
+var observeCases = []struct{ name, fixture, line string }{
+	{"show", "potion", "show"},
+	{"show-rulers-legend", "potion", "show --grid --rulers --legend"},
+	{"show-linked", "linked", "show --legend"},
+	{"show-blank", "blank", "show --rulers --legend"},
+	{"show-crop", "wide", "show --rulers --legend"},
+	{"show-full", "wide", "show --full --legend"},
+	{"show-empty-large", "wide-empty", "show --rulers"},
+	{"show-kw2", "kw2", "show --rulers --legend"},
+	{"get", "potion", "get 6,0"},
+	{"get-transparent", "potion", "get 0,0"},
+	{"get-kw2", "kw2", "get 3,1"},
+	{"stats", "potion", "stats"},
+	{"stats-linked", "linked", "stats"},
+	{"stats-blank", "blank", "stats"},
+	{"stats-kw2", "kw2", "stats"},
+}
+
 // TestObserveGolden compares the JSON and human forms of show, get and
 // stats with golden files, and checks that observing leaves the document
 // unchanged. The fixture "linked" has pixels on a second layer and frame
 // that these ops must not read (they read the target cel, D55).
 func TestObserveGolden(t *testing.T) {
-	tests := []struct{ name, fixture, line string }{
-		{"show", "potion", "show"},
-		{"show-rulers-legend", "potion", "show --grid --rulers --legend"},
-		{"show-linked", "linked", "show --legend"},
-		{"show-blank", "blank", "show --rulers --legend"},
-		{"show-crop", "wide", "show --rulers --legend"},
-		{"show-full", "wide", "show --full --legend"},
-		{"show-empty-large", "wide-empty", "show --rulers"},
-		{"show-kw2", "kw2", "show --rulers --legend"},
-		{"get", "potion", "get 6,0"},
-		{"get-transparent", "potion", "get 0,0"},
-		{"get-kw2", "kw2", "get 3,1"},
-		{"stats", "potion", "stats"},
-		{"stats-linked", "linked", "stats"},
-		{"stats-blank", "blank", "stats"},
-		{"stats-kw2", "kw2", "stats"},
-	}
-	for _, tt := range tests {
+	for _, tt := range observeCases {
 		t.Run(tt.name, func(t *testing.T) {
 			d := observeFixture(t, tt.fixture)
 			before := serialize(t, d)

@@ -1,0 +1,37 @@
+$ new hero.pxo --size 4,3
+--- document
+pixopher = 1
+size = [4, 3]
+rev = 0
+key_width = 1
+
+[palette]
+"." = ["#00000000", "transparent"]
+o = ["#1a1c2c", "ink"]
+p = ["#5d275d", "plum"]
+r = ["#b13e53", "red"]
+c = ["#ef7d57", "coral"]
+y = ["#ffcd75", "yellow"]
+l = ["#a7f070", "lime"]
+g = ["#38b764", "green"]
+t = ["#257179", "teal"]
+n = ["#29366f", "navy"]
+b = ["#3b5dc9", "blue"]
+s = ["#41a6f6", "sky"]
+i = ["#73eff7", "ice"]
+w = ["#f4f4f4", "white"]
+f = ["#94b0c2", "fog"]
+a = ["#566c86", "ash"]
+d = ["#333c57", "dusk"]
+
+[ramps]
+blue = ["n", "b", "s", "i"]
+gray = ["o", "d", "a", "f", "w"]
+green = ["t", "g", "l"]
+warm = { steps = ["p", "r", "c", "y"], base = "c" }
+
+[[layers]]
+name = "main"
+
+[[frames]]
+duration_ms = 100
