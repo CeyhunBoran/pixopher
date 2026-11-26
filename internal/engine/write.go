@@ -49,3 +49,7 @@ func writeAtomic(path string, data []byte) (err error) {
 	}
 	return nil
 }
+
+// WriteFile replaces path with data atomically, like the document writes:
+// readers never see a partial file. It is used for exports.
+func WriteFile(path string, data []byte) error { return writeAtomic(path, data) }

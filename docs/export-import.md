@@ -15,7 +15,7 @@ path may contain placeholders: `{name}` (doc file name), `{frame}`, `{tag}`,
 
 | Option | Meaning |
 | --- | --- |
-| `--scale n` | integer nearest-neighbor upscale (1–64). Also `--size 128x128` if it is an exact integer multiple. |
+| `--scale n` | integer nearest-neighbor upscale (1–64) **[done]**. An image side over 8192 px is `too_large` (D58). Also `--size 128x128` if it is an exact integer multiple. |
 | `--frame n` / `--tag name` / `--all-frames` | which frames |
 | `--layer L` / `--composite` (default) / `--each-layer` | which layers; hidden layers are skipped unless `--include-hidden` |
 | `--variant v` / `--variants all` | recolor variants (see [palettes.md](palettes.md#variants)) |
@@ -27,7 +27,7 @@ path may contain placeholders: `{name}` (doc file name), `{frame}`, `{tag}`,
 
 | Format | Milestone | Notes |
 | --- | --- | --- |
-| **PNG** | M1 | Lossless and the default. Writes indexed PNG (palette chunk + tRNS) when ≤256 colors, which gives small files, and RGBA otherwise. `--rgba` forces RGBA. |
+| **PNG** | M1 **[done]** | Lossless and the default. Writes indexed PNG (palette chunk + tRNS) when ≤256 colors, which gives small files, and RGBA otherwise. `--rgba` forces truecolor (RGB when every pixel is opaque). The palette follows the document's palette order (D58). |
 | **SVG** | M4 | One `<rect>` per merged run. A greedy rectangle merge per color minimizes elements. `shape-rendering="crispEdges"`, `viewBox` in art pixels, and `width`/`height` from `--scale`. `--css-vars` emits palette colors as CSS custom properties, so the web can recolor at runtime. |
 | **GIF** | M4 | Animated from frames/tags, using per-frame durations (GIF uses 10 ms units, so durations get rounded and a warning is printed). Transparency uses one reserved index. `--loop n` (0 = forever). |
 | **Spritesheet** | M4 | `--sheet grid --cols 8` (or `row`, `col`, `packed`) PNG, plus `--atlas out.json` with frame rects, durations, tags, and anchors per frame. The atlas format is pixopher's own simple JSON. `--atlas-format aseprite` writes an Aseprite-compatible JSON array/hash for engines that already read it. |

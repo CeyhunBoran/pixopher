@@ -563,3 +563,78 @@ exit 0
 --- stdout
 {"ok":true,"size":[12,4],"filled":22,"coverage":0.4583,"bbox":[2,0,8,4],"colors":[{"key":"o","name":"ink","color":"#1a1c2c","count":20},{"key":"r","name":"red","color":"#b13e53","count":1},{"key":"w","name":"white","color":"#f4f4f4","count":1}]}
 
+$ pxo export hero.pxo hero.png --scale 8 --json
+exit 0
+--- stdout
+{"ok":true,"written":["hero.png"],"warnings":[]}
+
+$ pxo export s.png -f s.pxo
+exit 0
+--- stdout
+s.png
+
+$ pxo export s.pxo out/s@4x.PNG --scale 4 --rgba --json
+exit 0
+--- stdout
+{"ok":true,"written":["out/s@4x.PNG"],"warnings":[]}
+
+$ pxo export s.pxo s.gif --json
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"unsupported_format","message":"can't export to \"s.gif\": unknown format \".gif\"","hint":"use a .png file; more formats come later","arg":"out"}}
+
+$ pxo export s.pxo s.png --scale 0 --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"scale must be 1 to 64, not 0","hint":"see `pixopher export --help`","arg":"scale"}}
+
+$ pxo export s.pxo s.png --scale 65
+exit 1
+--- stderr
+error[usage]: scale must be 1 to 64, not 65
+hint: see `pixopher export --help`
+
+$ pxo export s.pxo --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"missing argument <out>","hint":"see `pixopher export --help`","arg":"out"}}
+
+$ pxo export s.pxo s.png --dry-run --json
+exit 1
+--- stdout
+{"ok":false,"error":{"code":"usage","message":"unknown flag --dry-run","hint":"see `pixopher export --help`"}}
+
+$ pxo new wide.pxo --size 1024x4
+exit 0
+--- stdout
+ok rev 0  +0px
+
+$ pxo export wide.pxo wide.png --scale 9 --json
+exit 2
+--- stdout
+{"ok":false,"error":{"code":"too_large","message":"a 1024x4 canvas at --scale 9 is 9216x36 px","hint":"exports are at most 8192 px a side; the largest scale here is 8","arg":"scale"}}
+
+$ pxo export --help
+exit 0
+--- stdout
+Write the document as an image
+
+Arguments:
+  out  text; output file; the format comes from its extension (.png)
+
+Usage:
+  pixopher export <out> [flags]
+
+Examples:
+  pxo export hero.png --scale 8
+  pxo export hero.pxo out/hero@4x.png --scale 4 --json
+
+Flags:
+  -f, --file string   document to act on (default: $PIXOPHER_FILE, the file set by use, or the only *.pxo here)
+  -h, --help          help for export
+      --rgba          write truecolor even with 256 colors or fewer
+      --scale int     integer nearest-neighbor upscale, 1 to 64 (default 1)
+
+Global Flags:
+      --json   machine-readable output (PIXOPHER_JSON=1 turns it on everywhere)
+

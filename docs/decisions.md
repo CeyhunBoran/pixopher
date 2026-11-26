@@ -830,3 +830,52 @@ fails loudly instead of painting the wrong color.
 *Consequences*: in finished pixel art semi-transparent layers are usually
 baked into palette colors, so `+` mostly appears mid-work, and a future
 flatten or lint step can point at exactly those pixels.
+
+**D58: `export` PNG in M1** (2026-11-26)
+- **Not an op**: `export` changes no document and writes a file outside
+  it, so it is a hand-written command like `use` and `undo` (D35, D50).
+  Its arguments parse like a generated command's (D37). MCP will expose it as
+  the separate `pixopher_export` tool (agent-workflow.md), and batch
+  scripts don't export. It takes `-f`, a leading `.pxo` positional and
+  `--json`, and reads the document without the lock, like an observation
+  op.
+- **Arguments**: `export [doc.pxo] <out> [--scale n] [--rgba]`. The format
+  comes from the extension of `out`, compared without case. Only `.png`
+  exists so far; anything else is `unsupported_format` with arg `out`.
+  `--scale` (default 1) outside 1–64 is `usage` with arg `scale`. An
+  output side over 8192 px is `too_large` with arg `scale`, and the hint
+  names the largest scale that fits.
+- **Pixels**: the visible layers of the target frame (frame 0 until M4),
+  bottom first, are drawn over transparency with source-over, each pixel's
+  alpha multiplied by its layer's opacity, in exact integer math rounded to
+  nearest. One opaque layer gives back exactly its palette colors. Blend
+  modes other than `normal` aren't defined yet: such a layer is drawn as
+  normal and adds a warning. Every fully transparent pixel becomes
+  `0,0,0,0`.
+- **Indexed or truecolor**: the image's distinct colors are counted after
+  that mapping, so duplicate palette colors and different alpha-0 colors
+  count once. At 256 or fewer the PNG is indexed (PLTE, plus tRNS when a
+  color isn't opaque, at the smallest bit depth). The palette holds the
+  used colors in document palette order, so transparent is index 0, then
+  colors that aren't palette entries (blends) in the order they first
+  appear in row-major order. Otherwise, or with `--rgba`, it is truecolor:
+  RGBA, or RGB when every pixel is opaque. The standard library encoder
+  chooses that, and `--rgba` only means "not indexed".
+- **Writing**: the file is replaced atomically like a document, missing
+  parent directories are created, and an existing file is overwritten.
+  The output is `{"ok": true, "written": ["<out>"], "warnings": []}`, or
+  the path on its own line, with warnings on stderr. The path is printed as
+  given, so it doesn't depend on the OS.
+- **Deferred**: `--size`, `--format`, path placeholders (`{name}`,
+  `{scale}`, ...; for now a placeholder is written literally), `--bg`,
+  `--crop auto`, `--padding`, the frame, layer and variant flags, and
+  several inputs with `--out` come with the milestones that need them.
+*Why*: export is the step that ships assets, so it must match what `show
+--composite` will call a palette color (D57), and its bytes must be the
+same on every run and OS (cli.md). Indexed PNGs keep sprite files small,
+and palette order makes them predictable for tools that read the palette.
+The 8192 px cap keeps a 1024 px canvas at `--scale 64` from allocating
+gigabytes.
+*Consequences*: the bytes depend on Go's `image/png` encoder, which is
+pinned by the toolchain. The golden PNGs change when it does. M4 defines
+blend modes and replaces the warning.

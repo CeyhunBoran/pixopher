@@ -298,7 +298,33 @@ func TestBuiltinTranscript(t *testing.T) {
 	s.sh("stats s.pxo")
 	s.sh("stats s.pxo --json")
 
+	// Export (D58).
+	s.sh("export hero.pxo hero.png --scale 8 --json")
+	s.sh("export s.png -f s.pxo")
+	s.sh("export s.pxo out/s@4x.PNG --scale 4 --rgba --json")
+	s.sh("export s.pxo s.gif --json")
+	s.sh("export s.pxo s.png --scale 0 --json")
+	s.sh("export s.pxo s.png --scale 65")
+	s.sh("export s.pxo --json")
+	s.sh("export s.pxo s.png --dry-run --json")
+	s.sh("new wide.pxo --size 1024x4")
+	s.sh("export wide.pxo wide.png --scale 9 --json")
+	s.sh("export --help")
+	for _, f := range []string{"s.png", "out/s@4x.PNG"} {
+		if _, err := os.Stat(f); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := os.Stat("wide.png"); err == nil {
+		t.Fatal("a too_large export wrote wide.png")
+	}
+
 	golden.Check(t, filepath.Join(testdata, "builtin.golden"), []byte(s.out.String()))
+	png, err := os.ReadFile("hero.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	golden.Check(t, filepath.Join(testdata, "builtin.hero.png"), png)
 	for _, f := range []string{"hero.pxo", "hero.pxo.log", "pal.pxo", "pal.pxo.log"} {
 		data, err := os.ReadFile(f)
 		if err != nil {

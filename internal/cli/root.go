@@ -60,6 +60,7 @@ func newRoot(info BuildInfo, st *state) *cobra.Command {
 	})
 	root.AddCommand(newVersionCmd(info, st), newUseCmd(st))
 	root.AddCommand(newHistoryCmds(st)...)
+	root.AddCommand(newExportCmd(st))
 	for _, op := range st.cfg.ops.All() {
 		addOpCommand(root, op, st)
 	}

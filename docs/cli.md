@@ -369,6 +369,17 @@ pxo export --timelapse out.gif [--fps 12] [--from rev]                        [M
 pxo import <in.png> [<new.pxo>] [--palette keep|quantize:16|doc] [--as-layer ref --locked] [--pixelate 32x32]
 ```
 
+`export` to PNG with `--scale` and `--rgba` is **[done]** (D58). The other
+formats and options arrive with their milestones. With `--json`:
+
+```json
+{"ok": true, "written": ["out/hero@8x.png"], "warnings": []}
+```
+
+Without `--json` it prints each written path on its own line. Only `.png`
+is accepted for now (`unsupported_format` otherwise), `--scale` is 1 to 64,
+and an image side over 8192 px is `too_large`.
+
 Details are in [export-import.md](export-import.md).
 
 ### Misc [done]
