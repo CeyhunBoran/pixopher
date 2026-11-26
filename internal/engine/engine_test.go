@@ -465,6 +465,33 @@ func TestAtomicWrite(t *testing.T) {
 	}
 }
 
+// TestWriteErrorNamesTarget: a failed write is an io error that names the
+// target, never the temp file, whose random name would make the message
+// differ from run to run.
+func TestWriteErrorNamesTarget(t *testing.T) {
+	dir := t.TempDir()
+	taken := filepath.Join(dir, "taken.png")
+	if err := os.Mkdir(taken, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{
+		filepath.Join(dir, "missing", "a.png"), // the temp file can't be created
+		taken,                                  // the rename onto a directory fails
+	} {
+		err := WriteFile(path, []byte("x"))
+		e, ok := errors.AsType[*errs.Error](err)
+		if !ok || e.Code != errs.IO {
+			t.Fatalf("WriteFile(%s) = %v, want an io error", path, err)
+		}
+		if !strings.HasPrefix(e.Message, "can't write "+path+": ") || strings.Contains(e.Message, ".tmp") {
+			t.Fatalf("message %q does not name the target alone", e.Message)
+		}
+	}
+	if e := writeErr("a.png", &os.PathError{Op: "open", Path: ".a.png.tmp123", Err: os.ErrPermission}); e.Error() != "can't write a.png: permission denied" {
+		t.Fatalf("got %q", e.Error())
+	}
+}
+
 // BenchmarkApply64 is one single-step command on a 64x64 document: lock,
 // parse, apply, serialize, write, log. The budget is 15 ms (docs/roadmap.md).
 func BenchmarkApply64(b *testing.B) {
