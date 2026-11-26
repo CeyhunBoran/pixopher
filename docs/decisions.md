@@ -922,3 +922,24 @@ Found by the undo identity test of every op through the engine.
   red --replace blue` on a red pixel now reports it.
 *Why*: a delta says what a pixel showed before and after, and with key
 matching an index alone no longer says that.
+
+**D61: How the 64x64 budget is checked** (2026-11-27)
+- **What**: each command of the M1 done-when flow (`px`, `line`, `rect`,
+  `fill`, `undo`, `redo`, `show --grid --rulers --legend`, `stats`, `export
+  --scale 8`) on a 64x64 document with the default palette, every pixel
+  set in a pattern RLE can't shorten, and 300 transactions of history.
+  `new` isn't timed: it writes a fresh document without loading one or
+  reading a log, so it costs less than any drawing command.
+- **How**: in-process through the CLI's `execute`, so the command tree,
+  lock, load, apply, atomic write with fsync and log append all count;
+  only process start is left out (about 2 ms more for the built binary).
+  21 runs per command, and the median must be under 15 ms. At the time of
+  writing the medians are 3-5 ms, and under 1 ms for `show` and `stats`.
+- **When**: `TestBudget64` runs only with `PIXOPHER_BUDGET=1` and without
+  the race detector, so a busy laptop or `go test -race` doesn't fail it.
+  CI runs it in a step of its own, on Linux only: fsync and virus scanning
+  on shared macOS and Windows runners make their timings noise.
+  `BenchmarkCommand64` gives the same numbers for profiling.
+*Why*: a timing check that fails at random gets ignored, and one that
+never runs proves nothing. A median over runs on one OS is the steadiest
+signal that still catches a real slowdown.

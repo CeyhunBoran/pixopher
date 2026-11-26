@@ -3,9 +3,11 @@
 A pixel art CLI that AI agents can draw with, while you watch the drawing
 come together live in your terminal or browser.
 
-> **Status: M1 in progress.** The document model, the `.pxo` format and
-> color syntax exist, but nothing draws from the CLI yet. The design lives in [`docs/`](docs/README.md), and
-> the build order is in [`docs/roadmap.md`](docs/roadmap.md).
+> **Status: M1 done, not released yet.** You can create a document, draw
+> pixels, lines, rectangles and fills, manage the palette, read it back
+> with `show`, `get` and `stats`, export PNG, and undo and redo. The design
+> lives in [`docs/`](docs/README.md), and the build order is in
+> [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Install
 

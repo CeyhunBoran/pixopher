@@ -198,7 +198,11 @@ is all that undo and redo need. The log encoding of a `Change` is in D31.
 - **Golden tests**: `testdata/*.pxo` + script → expected `.pxo` and PNG,
   compared byte-for-byte. Update with `go test ./... -update`.
 - **Round-trip**: parse → serialize → parse is identity for every golden file.
-- **Op property tests**: apply then undo is identity for every mutating op.
+- **Op property tests**: apply then undo is identity for every mutating op,
+  both in memory and through the engine's history log. Guard tests fail
+  when a registered op has no golden case or no undo identity case.
+- **Budget**: each command of the M1 flow runs under 15 ms on a 64x64
+  document (`PIXOPHER_BUDGET=1`, Linux CI, D61).
 - **Lint fixtures**: one small `.pxo` per rule with expected findings.
 - **CLI tests**: run the command tree in-process and assert stdout/JSON/exit
   codes.

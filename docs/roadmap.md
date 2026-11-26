@@ -43,7 +43,7 @@ already includes layers and frames, but only one of each is exposed.
 - [x] Observation: `show --grid --rulers --legend`, `get`, `stats` (D55)
 - [x] `export` PNG with `--scale`, indexed when ≤256 colors (D58)
 - [x] `--json` output, error codes and exit codes from [cli.md](cli.md) (D59)
-- [ ] Golden tests, round-trip tests, and undo-identity tests for every op
+- [x] Golden tests, round-trip tests, and undo-identity tests for every op, and the 64x64 budget check (D60, D61)
 
 **Done when** an agent can run `new → px/line/rect/fill → show --grid →
 export --scale 8` and `undo` back to an empty canvas, with every step's
