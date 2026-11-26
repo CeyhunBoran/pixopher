@@ -932,7 +932,8 @@ matching an index alone no longer says that.
   reading a log, so it costs less than any drawing command.
 - **How**: in-process through the CLI's `execute`, so the command tree,
   lock, load, apply, atomic write with fsync and log append all count;
-  only process start is left out (about 2 ms more for the built binary).
+  only process start is left out (about 3 ms more for the built binary,
+  whose medians are 6-8 ms).
   21 runs per command, and the median must be under 15 ms. At the time of
   writing the medians are 3-5 ms, and under 1 ms for `show` and `stats`.
 - **When**: `TestBudget64` runs only with `PIXOPHER_BUDGET=1` and without
